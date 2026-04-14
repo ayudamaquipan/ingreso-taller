@@ -354,7 +354,7 @@
   appId: "1:728667262903:web:4a95246e0e1ee860e56232"
 };
 
-        const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwOXTABNSc_6ssjs_Kr23Vrt69sSHhX8s0mpi0qtmbUNNKV69BoaCG6Rjlu8aCeK9sX/exec";
+        const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbzut_M-YlxK4aG68xjYDcGPM_rxXgxCI_poV7PSDo4jGrHtAQccYfraDyW3yRNJ5VA2/exec";
         // =========================================================================
 
         const app = initializeApp(firebaseConfig);
@@ -374,7 +374,7 @@
             window.aplicarFiltros(); 
         });
 
-        // FOTO A DRIVE (COMPRESIÓN WEBP)
+// FOTO A DRIVE (COMPRESIÓN WEBP Y FIX CORS)
         async function subirFotoADrive(file, nombreBase) {
             if(!GOOGLE_DRIVE_API_URL.includes("script.google.com")) return null; 
             return new Promise((resolve, reject) => {
@@ -389,23 +389,20 @@
                         ctx.drawImage(img, 0, 0, width, height);
                         const webpBase64 = canvas.toDataURL('image/webp', 0.7);
 
-                        // Aquí está la magia para evitar el error CORS
+                        // Petición simplificada: Sin headers extraños para que el navegador no bloquee el CORS
                         fetch(GOOGLE_DRIVE_API_URL, {
                             method: 'POST',
-                            redirect: 'follow', // Necesario para Google Apps Script
-                            headers: {
-                                "Content-Type": "text/plain;charset=utf-8", // Evita el bloqueo CORS preflight
-                            },
                             body: JSON.stringify({ 
                                 base64: webpBase64, 
                                 mimeType: 'image/webp', 
                                 fileName: `${nombreBase}_${Date.now()}.webp` 
                             })
                         }).then(res => res.json()).then(data => {
-                            if(data.status === 'success') resolve(data.url); else reject(data.message);
-                        }).catch(error => {
-                            console.error("Error en Fetch:", error);
-                            reject(error);
+                            if(data.status === 'success') resolve(data.url); 
+                            else reject(data.message);
+                        }).catch(err => {
+                            console.error("Error de Fetch:", err);
+                            reject("Error conectando con Google Drive.");
                         });
                     }
                     img.src = event.target.result;
