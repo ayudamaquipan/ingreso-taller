@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Taller - FIXEAT Maquipan</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
+    
+    <style>
+        :root {
+            --primary-color: #1e293b; --secondary-color: #3b82f6; --secondary-hover: #2563eb;
+            --success-color: #10b981; --warning-color: #f59e0b; --danger-color: #ef4444; 
+            --bg-color: #f1f5f9; --card-bg: #ffffff; --text-main: #334155;
+            --text-muted: #64748b; --border-color: #e2e8f0;
+            --radius-md: 10px; --radius-lg: 16px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            font-family: 'Inter', sans-serif;
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 25px 20px; line-height: 1.5; }
+        .container { max-width: 1500px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+        /* HEADER & DASHBOARD */
+        .header { background: linear-gradient(135deg, var(--primary-color) 0%, #334155 100%); color: white; padding: 20px 30px; border-radius: var(--radius-lg); display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); }
+        .header h1 { margin: 0; font-size: 1.6em; font-weight: 600; letter-spacing: -0.5px; }
+        #reloj { font-weight: 500; font-size: 1.1em; opacity: 0.9; }
+        
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .stat-card { background: var(--card-bg); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+        .stat-card.ingresados { border-left: 5px solid var(--warning-color); }
+        .stat-card.revision { border-left: 5px solid var(--secondary-color); }
+        .stat-card.reparados { border-left: 5px solid var(--success-color); }
+        .stat-info h3 { margin: 0; font-size: 0.85em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .stat-number { font-size: 2.2em; font-weight: 700; margin-top: 5px; color: var(--primary-color); line-height: 1; }
+
+        /* CARDS & FORMS */
+        .card { background-color: var(--card-bg); padding: 25px; border-radius: var(--radius-md); box-shadow: var(--shadow-md); border: 1px solid var(--border-color); }
+        .form-row { display: flex; gap: 15px; }
+        .form-group { margin-bottom: 15px; flex: 1; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85em; color: var(--text-main); }
+        input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: 'Inter', sans-serif; font-size: 0.9em; color: var(--text-main); transition: border-color 0.2s; background-color: #f8fafc; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--secondary-color); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); background-color: #fff; }
+        textarea { resize: vertical; height: 60px; }
+        
+        /* BOTONES */
+        button { background-color: var(--secondary-color); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.95em; transition: background-color 0.2s, transform 0.1s; box-shadow: var(--shadow-sm); display: inline-flex; align-items: center; justify-content: center; gap: 8px;}
+        button:hover { background-color: var(--secondary-hover); }
+        button:active { transform: scale(0.98); }
+        .btn-success { background-color: var(--success-color); }
+        .btn-success:hover { background-color: #059669; }
+        .btn-secondary { background-color: #475569; }
+        .btn-secondary:hover { background-color: #334155; }
+        .btn-outline { background-color: white; color: var(--text-main); border: 1px solid #cbd5e1; box-shadow: none; }
+        .btn-outline:hover { background-color: #f1f5f9; }
+
+        /* TABLA PRINCIPAL Y FILTROS */
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
+        .toolbar-left { display: flex; align-items: center; gap: 20px; }
+        .toolbar h2 { margin: 0; color: var(--primary-color); font-size: 1.4em; font-weight: 600; }
+        .search-box { width: 320px; padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 20px; outline: none; font-size: 0.9em; background-color: #f8fafc; }
+        .filtros-box { background-color: #f8fafc; padding: 15px 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 20px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        th, td { padding: 16px 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background-color: #f8fafc; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.8em; border-bottom: 2px solid var(--border-color);}
+        tr { transition: background-color 0.15s; }
+        tr:hover { background-color: #f1f5f9; }
+
+        .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600; display: inline-block; }
+        .estado-ingresado { background-color: #ffedd5; color: #c2410c; } 
+        .estado-revision { background-color: #e0f2fe; color: #0369a1; }  
+        .estado-reparado { background-color: #dcfce7; color: #15803d; }  
+        .estado-esperando { background-color: #f3e8ff; color: #7e22ce; } 
+
+        .btn-accion { padding: 8px 14px; font-size: 0.85em; width: auto; background-color: white; color: var(--text-main); border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; border-radius: 6px; font-weight: 500;}
+        .btn-accion:hover { background-color: #f8fafc; border-color: #94a3b8; }
+        
+        /* MODALES */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+        .modal-content { background-color: var(--card-bg); border-radius: var(--radius-lg); width: 95%; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+        .modal-large { max-width: 1100px; height: 90vh; }
+        .modal-medium { max-width: 750px; max-height: 90vh; } 
+
+        .modal-header { background-color: var(--primary-color); color: white; padding: 18px 25px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .modal-header h2 { margin: 0; color: white; border: none; padding: 0; font-size: 1.3em;}
+        .close { color: white; font-size: 28px; font-weight: 300; cursor: pointer; line-height: 1; opacity: 0.8; transition: opacity 0.2s;}
+        .close:hover { opacity: 1; color: #f87171; }
+        
+        .modal-body-scroll { padding: 30px; overflow-y: auto; }
+        .modal-body-wrapper { display: grid; grid-template-columns: 1.2fr 1fr; flex: 1; overflow: hidden; }
+        .modal-body-left { padding: 30px; border-right: 1px solid var(--border-color); overflow-y: auto; }
+        .modal-body-right { padding: 30px; background-color: #f8fafc; display: flex; flex-direction: column; overflow-y: auto; }
+
+        .form-section-title { font-size: 1em; color: var(--secondary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 15px; margin-top: 5px; font-weight: 600;}
+
+        .detalle-item { margin-bottom: 15px; }
+        .detalle-item span { display: block; font-size: 0.75em; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;}
+        .detalle-item strong { font-size: 1.05em; color: var(--text-main); font-weight: 500;}
+
+        /* FOTOS Y PDFS */
+        .foto-equipo-container { margin-bottom: 20px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); background-color: #f1f5f9; display: flex; justify-content: center; align-items: center; max-height: 250px;}
+        .foto-equipo-container img { max-width: 100%; max-height: 250px; object-fit: contain; }
+        .foto-placeholder { padding: 40px; color: var(--text-muted); font-size: 0.9em; text-align: center;}
+
+        .pdf-uploader-box { background-color: #f0f9ff; padding: 20px; border-radius: var(--radius-md); margin-bottom: 25px; border: 1px dashed #7dd3fc; text-align: center; }
+        .pdf-uploader-box label { color: #0369a1; margin-bottom: 10px; font-size: 1em; font-weight: 600; display: block;}
+        .pdf-uploader-box input[type="file"] { background: white; border: 1px solid #bae6fd; max-width: 300px; margin: 0 auto; display: block;}
+
+        .bitacora-container { flex-grow: 1; min-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: white; padding: 15px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+        .nota-bitacora { border-left: 3px solid var(--secondary-color); padding: 10px 12px; margin-bottom: 12px; background-color: #f8fafc; border-radius: 0 6px 6px 0; font-size: 0.9em; border: 1px solid #e2e8f0; border-left-width: 3px; line-height: 1.4;}
+        .nota-fecha { font-size: 0.8em; color: var(--text-muted); margin-bottom: 4px; font-weight: 500;}
+        
+        .tabla-mini { font-size: 0.85em; width: 100%; border: 1px solid var(--border-color); margin-top: 5px; border-collapse: collapse; border-radius: 6px; overflow: hidden;}
+        .tabla-mini th { background-color: #f1f5f9; padding: 10px; text-align: left; color: var(--text-muted); font-weight: 600;}
+        .tabla-mini td { padding: 10px; border-bottom: 1px solid var(--border-color); transition: background-color 0.3s;}
+
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; color: white; font-size: 1.5em; justify-content: center; align-items: center; flex-direction: column;}
+        
+        /* ESTILOS DE IMPRESIÓN */
+        .print-area { display: none; } 
+        @media print {
+            body * { visibility: hidden; } 
+            .print-area, .print-area * { visibility: visible; }
+            .print-area { display: block; position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 30px; font-family: 'Inter', sans-serif;}
+            .print-header { border-bottom: 2px solid #1e293b; padding-bottom: 15px; margin-bottom: 25px; text-align: center; }
+            .print-header h1 { margin: 0; font-size: 24px; color: #1e293b; }
+            .print-section { margin-bottom: 30px; }
+            .print-section-title { font-size: 16px; font-weight: 700; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase; }
+            .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px; margin-bottom: 20px;}
+            .print-grid div span { font-weight: bold; color: #475569; display: inline-block; width: 120px; }
+            .print-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 12px; }
+            .print-table th, .print-table td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+            .print-table th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; font-weight: bold;}
+            .print-log { border-left: 3px solid #cbd5e1; padding-left: 15px; margin-bottom: 15px; font-size: 13px;}
+            .print-log-date { font-weight: bold; color: #64748b; font-size: 11px; margin-bottom: 3px;}
+            .signatures { display: flex; justify-content: space-between; margin-top: 80px; padding: 0 40px; page-break-inside: avoid;}
+            .sig-box { text-align: center; width: 40%; }
+            .sig-line { border-top: 1px solid black; padding-top: 10px; font-size: 14px; font-weight: bold; margin-top: 50px;}
+        }
+
+        @media (max-width: 900px) {
+            .modal-body-wrapper { grid-template-columns: 1fr; overflow-y: auto; display: block; }
+            .modal-body-left { border-right: none; border-bottom: 2px solid var(--border-color); overflow-y: visible;}
+            .modal-body-right { overflow-y: visible; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div>⏳ Procesando...</div>
+        <small style="font-size: 0.6em; margin-top: 10px; color:#cbd5e1;">Por favor, no cierres la ventana</small>
+    </div>
+    <div id="printArea" class="print-area"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🛠️ FIXEAT - Taller Maquipan</h1>
+            <div id="reloj">--:--</div>
+        </div>
+
+        <div class="dashboard">
+            <div class="stat-card ingresados"><div class="stat-info"><h3>Ingresados</h3><div class="stat-number" id="count-ingresados">0</div></div></div>
+            <div class="stat-card revision"><div class="stat-info"><h3>Revisión / Ppto</h3><div class="stat-number" id="count-revision">0</div></div></div>
+            <div class="stat-card reparados"><div class="stat-info"><h3>Reparados</h3><div class="stat-number" id="count-reparados">0</div></div></div>
+        </div>
+
+        <div class="card" style="padding-bottom: 10px;">
+            <div class="toolbar" style="margin-bottom: 10px;">
+                <h2 style="border:none; margin:0; padding:0;">📊 Filtros y Reportes</h2>
+                <button onclick="imprimirListadoReporte()" class="btn-secondary" style="width: auto; margin:0;">🖨️ Generar Reporte</button>
+            </div>
+            
+            <div class="filtros-box">
+                <div class="form-row" style="align-items: flex-end; flex-wrap: wrap;">
+                    <div class="form-group" style="min-width: 200px;"><label>Buscar:</label><input type="text" id="filtro-texto" placeholder="Cliente, Serie o Req..." onkeyup="aplicarFiltros()"></div>
+                    <div class="form-group" style="min-width: 150px;">
+                        <label>Estado:</label>
+                        <select id="filtro-estado" onchange="aplicarFiltros()">
+                            <option value="">Todos los estados</option>
+                            <option value="Ingresado">Ingresado</option>
+                            <option value="En Revisión">En Revisión</option>
+                            <option value="Esperando Aprobación">Esperando Aprobación</option>
+                            <option value="Aprobado - Esperando Repuesto">Esperando Repuestos</option>
+                            <option value="En Reparación">En Reparación</option>
+                            <option value="Reparado">Reparado / Listo</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="min-width: 150px;"><label>Fecha de:</label><select id="filtro-tipo-fecha" onchange="aplicarFiltros()"><option value="fechaIngreso">Ingreso a Taller</option><option value="fechaPresupuesto">Límite Reparación</option></select></div>
+                    <div class="form-group" style="min-width: 130px;"><label>Desde:</label><input type="date" id="filtro-desde" onchange="aplicarFiltros()"></div>
+                    <div class="form-group" style="min-width: 130px;"><label>Hasta:</label><input type="date" id="filtro-hasta" onchange="aplicarFiltros()"></div>
+                    <div class="form-group" style="flex: 0; min-width: 100px;"><button onclick="limpiarFiltros()" class="btn-outline" style="margin: 0; width: 100%;">Limpiar</button></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="toolbar">
+                <h2 style="border:none; margin:0; padding:0;">Control General de Equipos</h2>
+                <button onclick="abrirModalIngreso()" class="btn-success" style="width: auto; margin: 0; padding: 12px 25px; font-size: 1em;">➕ Registrar Nuevo Equipo</button>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table id="tablaEquipos">
+                    <thead><tr><th>Documentos</th><th>Cliente & Equipo</th><th>Fechas Clave</th><th>Estado</th><th style="text-align: right;">Acciones</th></tr></thead>
+                    <tbody id="tablaBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalIngreso" class="modal">
+        <div class="modal-content modal-medium">
+            <div class="modal-header">
+                <h2>📝 Ficha de Nuevo Ingreso</h2>
+                <span class="close" onclick="cerrarModalIngreso()">&times;</span>
+            </div>
+            <div class="modal-body-scroll">
+                <form id="ingresoForm">
+                    <h3 class="form-section-title">Registro Fotográfico</h3>
+                    <div class="form-group" style="background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed var(--secondary-color);">
+                        <label>📸 Foto del Equipo al Ingresar (Opcional):</label>
+                        <input type="file" id="foto-equipo" accept="image/*" capture="environment">
+                        <small style="color:var(--text-muted); display:block; margin-top:5px;">El sistema comprimirá y guardará la imagen en formato .webp automáticamente en Drive.</small>
+                    </div>
+
+                    <h3 class="form-section-title">Información del Cliente y Equipo</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Cliente / Sucursal:</label><input type="text" id="cliente" required placeholder="Ej: Tottus Centro"></div>
+                        <div class="form-group"><label>N° Req (Opcional):</label><input type="text" id="req-ingreso" placeholder="Ej: REQ-156991"></div>
+                    </div>
+                    <div class="form-group"><label>Equipo y Modelo:</label><input type="text" id="equipo" required placeholder="Ej: Horno Zucchelli 60x40"></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>N° Serie:</label><input type="text" id="serie" required placeholder="Ingresar Serie"></div>
+                        <div class="form-group"><label>Prioridad:</label><select id="prioridad"><option value="Media">Media</option><option value="Alta">Alta (Urgente)</option><option value="Baja">Baja</option></select></div>
+                    </div>
+
+                    <h3 class="form-section-title">Plazos de Taller</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Fecha Ingreso:</label><input type="date" id="fecha-ingreso" required></div>
+                        <div class="form-group"><label>Límite Ppto / Rep.:</label><input type="date" id="fecha-presupuesto" required></div>
+                    </div>
+
+                    <h3 class="form-section-title">Diagnóstico Preliminar</h3>
+                    <div class="form-group"><label>Falla Reportada:</label><textarea id="falla" required placeholder="Detalle el problema informado..."></textarea></div>
+                    <div class="form-group"><label>Técnico Asignado (Opcional):</label><input type="text" id="tecnico" placeholder="Nombre del técnico"></div>
+                    
+                    <div style="display: flex; gap: 15px; margin-top: 25px;">
+                        <button type="button" onclick="cerrarModalIngreso()" class="btn-outline">Cancelar</button>
+                        <button type="submit" class="btn-success">💾 Crear Ficha y Subir Foto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDetalle" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="modal-titulo">Detalle del Equipo</h2>
+                <span class="close" onclick="cerrarModal()">&times;</span>
+            </div>
+            
+            <div class="modal-body-wrapper">
+                <div class="modal-body-left">
+                    <div id="mod-foto-container" class="foto-equipo-container"></div>
+
+                    <div class="pdf-uploader-box">
+                        <label>📑 Cargar Presupuesto (PDF)</label>
+                        <input type="file" id="pdf-modal-upload" accept="application/pdf">
+                        <small style="display:block; margin-top:8px; color:var(--text-muted);">Extrae Cotización, REQ, Repuestos, Neto y Total.</small>
+                        <div id="pdf-loading" style="display:none; color: var(--secondary-color); font-weight: 600; margin-top: 10px;">⏳ Procesando PDF... </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="detalle-item"><span>N° Req</span><strong id="mod-req" style="color:var(--secondary-color);"></strong></div>
+                        <div class="detalle-item"><span>Cotización</span><strong id="mod-cotizacion"></strong></div>
+                        <div class="detalle-item"><span>Neto (Sin IVA)</span><strong id="mod-subtotal" style="color:var(--warning-color); font-size: 1.1em;"></strong></div>
+                        <div class="detalle-item"><span>Total (Con IVA)</span><strong id="mod-total" style="color:var(--success-color); font-size: 1.2em;"></strong></div>
+                    </div>
+                    
+                    <div class="detalle-item"><span>Cliente / Sucursal</span><strong id="mod-cliente"></strong></div>
+                    <div class="detalle-item"><span>Equipo Informado</span><strong id="mod-equipo"></strong></div>
+                    <div class="form-row">
+                        <div class="detalle-item"><span>N° Serie</span><strong id="mod-serie"></strong></div>
+                        <div class="detalle-item"><span>Estado Actual</span><strong id="mod-estado-txt" style="color:var(--primary-color);"></strong></div>
+                    </div>
+                    <div class="detalle-item"><span>Falla Reportada</span><strong id="mod-falla"></strong></div>
+                    
+                    <hr style="border:0; border-top:1px solid var(--border-color); margin:20px 0;">
+                    <h3 style="font-size: 1.1em; margin-top: 0; color: var(--primary-color); display: flex; justify-content: space-between;">
+                        Repuestos Asignados
+                        <span id="contador-repuestos" style="font-size: 0.8em; color: var(--text-muted); background: #f1f5f9; padding: 2px 8px; border-radius: 12px;">0/0 Listos</span>
+                    </h3>
+                    <table class="tabla-mini" id="mod-tabla-repuestos">
+                        <thead><tr><th style="width: 30px; text-align: center;">✔️</th><th>Código</th><th style="text-align: center;">Cant.</th><th>Descripción</th><th>Valor</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="modal-body-right">
+                    <div class="form-group"><label>Técnico a cargo:</label><input type="text" id="mod-tecnico"></div>
+                    <div class="form-group">
+                        <label>Cambiar Estado Técnico:</label>
+                        <select id="mod-estado">
+                            <option value="Ingresado">Ingresado</option>
+                            <option value="En Revisión">En Revisión</option>
+                            <option value="Esperando Aprobación">Esperando Aprobación</option>
+                            <option value="Aprobado - Esperando Repuesto">Aprobado - Esperando Repuestos</option>
+                            <option value="En Reparación">En Reparación</option>
+                            <option value="Reparado">Reparado / Listo</option>
+                        </select>
+                    </div>
+                    
+                    <h3 style="margin-top:15px; font-size: 1.1em; color: var(--primary-color);">Bitácora de Trabajo</h3>
+                    <div class="bitacora-container" id="contenedor-bitacora"></div>
+                    
+                    <div class="form-group" style="margin-bottom:0;">
+                        <textarea id="nueva-nota" placeholder="Escribe un avance técnico o nota interna..." style="height: 50px;"></textarea>
+                        <button onclick="agregarNotaBoton()" style="margin-top: 10px; background-color: var(--secondary-color);">➕ Agregar Nota Manual</button>
+                    </div>
+                    
+                    <div style="display:flex; flex-direction:column; gap: 10px; margin-top:20px;">
+                        <button onclick="guardarCambiosModal()" style="font-size: 1em; padding: 14px;" class="btn-success">💾 Guardar Cambios y Cerrar</button>
+                        <button onclick="generarActaPDF()" class="btn-secondary" style="font-size: 1em; padding: 12px;">📄 Generar Acta de Entrega (PDF)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // =========================================================================
+        // ⚠️ IMPORTANTE: PEGA AQUÍ TUS DATOS DE FIREBASE Y APPS SCRIPT
+        // =========================================================================
+        const firebaseConfig = {
+  apiKey: "AIzaSyADlIoxLkdXlozWTfq9praGdn4pgTeleSo",
+  authDomain: "ingreso-taller-6b023.firebaseapp.com",
+  projectId: "ingreso-taller-6b023",
+  storageBucket: "ingreso-taller-6b023.firebasestorage.app",
+  messagingSenderId: "728667262903",
+  appId: "1:728667262903:web:4a95246e0e1ee860e56232"
+};
+
+        const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwOXTABNSc_6ssjs_Kr23Vrt69sSHhX8s0mpi0qtmbUNNKV69BoaCG6Rjlu8aCeK9sX/exec";
+        // =========================================================================
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const equiposRef = collection(db, "equipos");
+
+        document.getElementById('fecha-ingreso').valueAsDate = new Date();
+        setInterval(() => { document.getElementById('reloj').innerText = new Date().toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'}); }, 1000);
+        function formatearFecha(f) { if(!f) return '--'; const p = f.split('-'); return p.length===3 ? `${p[2]}-${p[1]}-${p[0]}`:f; }
+
+        let equipos = []; let equipoActivoId = null; let arrayFiltradoActual = [];
+
+        const q = query(equiposRef, orderBy("timestamp", "desc"));
+        onSnapshot(q, (snapshot) => {
+            equipos = [];
+            snapshot.forEach((doc) => { equipos.push({ id: doc.id, ...doc.data() }); });
+            window.aplicarFiltros(); 
+        });
+
+        // FOTO A DRIVE (COMPRESIÓN WEBP)
+        async function subirFotoADrive(file, nombreBase) {
+            if(!GOOGLE_DRIVE_API_URL.includes("script.google.com")) return null; 
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                        const MAX_WIDTH = 800; let width = img.width; let height = img.height;
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                        canvas.width = width; canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        const webpBase64 = canvas.toDataURL('image/webp', 0.7);
+
+                        // Aquí está la magia para evitar el error CORS
+                        fetch(GOOGLE_DRIVE_API_URL, {
+                            method: 'POST',
+                            redirect: 'follow', // Necesario para Google Apps Script
+                            headers: {
+                                "Content-Type": "text/plain;charset=utf-8", // Evita el bloqueo CORS preflight
+                            },
+                            body: JSON.stringify({ 
+                                base64: webpBase64, 
+                                mimeType: 'image/webp', 
+                                fileName: `${nombreBase}_${Date.now()}.webp` 
+                            })
+                        }).then(res => res.json()).then(data => {
+                            if(data.status === 'success') resolve(data.url); else reject(data.message);
+                        }).catch(error => {
+                            console.error("Error en Fetch:", error);
+                            reject(error);
+                        });
+                    }
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // GUARDAR NUEVO INGRESO
+        document.getElementById('ingresoForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            document.getElementById('loading-overlay').style.display = 'flex'; 
+            
+            try {
+                let fotoUrl = null;
+                const fotoInput = document.getElementById('foto-equipo');
+                const serieVal = document.getElementById('serie').value.trim() || 'equipo';
+                
+                if(fotoInput.files.length > 0) { fotoUrl = await subirFotoADrive(fotoInput.files[0], serieVal); }
+
+                const valReq = document.getElementById('req-ingreso').value.trim();
+                const nuevoEquipo = {
+                    req: valReq !== '' ? valReq : '--', cotizacion: '--', subtotal: '--', totalCotizacion: '--',
+                    fechaIngreso: document.getElementById('fecha-ingreso').value, fechaPresupuesto: document.getElementById('fecha-presupuesto').value,
+                    cliente: document.getElementById('cliente').value, equipo: document.getElementById('equipo').value, serie: serieVal,
+                    prioridad: document.getElementById('prioridad').value, falla: document.getElementById('falla').value,
+                    tecnico: document.getElementById('tecnico').value || 'Sin asignar', estado: 'Ingresado', repuestos: [], fotoDriveUrl: fotoUrl, 
+                    bitacora: [{ fecha: new Date().toLocaleString('es-CL'), nota: "Ficha de ingreso creada en sistema." + (fotoUrl ? " 📸 (Con Fotografía)" : "") }],
+                    timestamp: Date.now()
+                };
+
+                await addDoc(equiposRef, nuevoEquipo);
+                this.reset(); document.getElementById('fecha-ingreso').valueAsDate = new Date(); window.cerrarModalIngreso(); 
+            } catch (error) {
+                console.error(error); alert("Error al guardar el equipo o subir la foto. (Revisa tus conexiones a Firebase/Drive)");
+            } finally { document.getElementById('loading-overlay').style.display = 'none'; }
+        });
+
+        // FUNCIONES DE INTERFAZ EXPUESTAS A WINDOW
+        const modalIngreso = document.getElementById('modalIngreso');
+        window.abrirModalIngreso = function() { modalIngreso.style.display = 'flex'; }
+        window.cerrarModalIngreso = function() { modalIngreso.style.display = 'none'; }
+
+        window.aplicarFiltros = function() {
+            const texto = document.getElementById('filtro-texto').value.toLowerCase(); const estado = document.getElementById('filtro-estado').value;
+            const tipoFecha = document.getElementById('filtro-tipo-fecha').value; 
+            const desde = document.getElementById('filtro-desde').value; const hasta = document.getElementById('filtro-hasta').value;
+
+            arrayFiltradoActual = equipos.filter(eq => {
+                const matchTexto = eq.cliente.toLowerCase().includes(texto) || eq.serie.toLowerCase().includes(texto) || eq.req.toLowerCase().includes(texto);
+                const matchEstado = estado === "" || eq.estado === estado;
+                let matchFecha = true;
+                if (desde || hasta) {
+                    const fE = eq[tipoFecha]; 
+                    if (desde && fE < desde) matchFecha = false; if (hasta && fE > hasta) matchFecha = false;
+                }
+                return matchTexto && matchEstado && matchFecha;
+            });
+            renderizarTabla(arrayFiltradoActual); actualizarDashboard(arrayFiltradoActual);
+        }
+
+        window.limpiarFiltros = function() {
+            document.getElementById('filtro-texto').value = ''; document.getElementById('filtro-estado').value = '';
+            document.getElementById('filtro-desde').value = ''; document.getElementById('filtro-hasta').value = '';
+            window.aplicarFiltros();
+        }
+
+        function renderizarTabla(datos) {
+            const tbody = document.getElementById('tablaBody');
+            tbody.innerHTML = '';
+            if(datos.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay equipos registrados.</td></tr>'; return; }
+
+            datos.forEach(eq => {
+                let claseEstado = 'estado-revision';
+                if(eq.estado.includes('Reparado') || eq.estado.includes('En Reparación')) claseEstado = 'estado-reparado';
+                if(eq.estado === 'Ingresado') claseEstado = 'estado-ingresado';
+                if(eq.estado === 'Esperando Aprobación' || eq.estado.includes('Esperando Repuesto')) claseEstado = 'estado-esperando';
+
+                const badgeReq = eq.req !== '--' ? `<span style="color:var(--secondary-color); font-weight:700; display:block; margin-bottom:3px;">${eq.req}</span>` : '';
+                let valoresPpto = eq.totalCotizacion !== '--' ? `<br><strong style="color:var(--success-color); font-size: 0.9em;">Total: $${eq.totalCotizacion}</strong>` : '';
+                
+                let textoRepuestos = '';
+                if (eq.repuestos && eq.repuestos.length > 0) {
+                    const listos = eq.repuestos.filter(r => r.disponible).length;
+                    const colorTick = listos === eq.repuestos.length ? 'var(--success-color)' : 'var(--warning-color)';
+                    textoRepuestos = `<br><small style="color:${colorTick}; font-weight:600;">⚙️ Repuestos: ${listos}/${eq.repuestos.length} Listos</small>`;
+                }
+                const iconoCamara = eq.fotoDriveUrl ? ` <span title="Tiene Foto">📸</span>` : '';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="min-width: 120px;">${badgeReq}<span style="color:var(--text-muted); font-size:0.9em;">Cot: ${eq.cotizacion}</span>${valoresPpto}</td>
+                        <td><strong style="color:var(--primary-color); font-size: 1.05em;">${eq.cliente}</strong>${iconoCamara}<br><span style="color:var(--text-main);">${eq.equipo}</span> <small style="color:var(--text-muted);">(SN: ${eq.serie})</small>${textoRepuestos}</td>
+                        <td style="min-width: 110px; font-size:0.85em;"><span style="color:var(--text-muted);">Ingreso: ${formatearFecha(eq.fechaIngreso)}</span><br><strong style="color:var(--warning-color);">Ppto: ${formatearFecha(eq.fechaPresupuesto)}</strong></td>
+                        <td><span class="badge ${claseEstado}">${eq.estado}</span></td>
+                        <td style="text-align: right;"><button class="btn-accion" onclick="abrirModal('${eq.id}')">👁️ Gestionar</button></td>
+                    </tr>`;
+            });
+        }
+
+        function actualizarDashboard(datos = equipos) {
+            document.getElementById('count-ingresados').innerText = datos.filter(e => e.estado === 'Ingresado').length;
+            document.getElementById('count-revision').innerText = datos.filter(e => e.estado !== 'Ingresado' && !e.estado.includes('Reparado') && !e.estado.includes('En Reparación')).length;
+            document.getElementById('count-reparados').innerText = datos.filter(e => e.estado.includes('Reparado') || e.estado.includes('En Reparación')).length;
+        }
+
+        const modalDetalle = document.getElementById('modalDetalle');
+        window.abrirModal = function(id) {
+            equipoActivoId = id; const equipo = equipos.find(e => e.id === id);
+            window.repuestosIniciales = JSON.parse(JSON.stringify(equipo.repuestos || []));
+            cargarDatosEnModal(equipo); modalDetalle.style.display = "flex"; 
+        }
+
+        window.cerrarModal = function(guardado = false) { 
+            if (guardado !== true && equipoActivoId && window.repuestosIniciales) {
+                const equipo = equipos.find(e => e.id === equipoActivoId);
+                if(equipo) equipo.repuestos = JSON.parse(JSON.stringify(window.repuestosIniciales));
+                window.aplicarFiltros(); 
+            }
+            modalDetalle.style.display = "none"; equipoActivoId = null; window.repuestosIniciales = null;
+        }
+
+        function cargarDatosEnModal(equipo) {
+            document.getElementById('modal-titulo').innerText = `Gestión: ${equipo.equipo}`;
+            document.getElementById('mod-req').innerText = equipo.req; document.getElementById('mod-cotizacion').innerText = equipo.cotizacion;
+            document.getElementById('mod-subtotal').innerText = equipo.subtotal !== '--' ? '$' + equipo.subtotal : '--';
+            document.getElementById('mod-total').innerText = equipo.totalCotizacion !== '--' ? '$' + equipo.totalCotizacion : '--';
+            document.getElementById('mod-cliente').innerText = equipo.cliente; document.getElementById('mod-equipo').innerText = equipo.equipo;
+            document.getElementById('mod-serie').innerText = equipo.serie; document.getElementById('mod-falla').innerText = equipo.falla;
+            document.getElementById('mod-tecnico').value = equipo.tecnico; document.getElementById('mod-estado').value = equipo.estado;
+            document.getElementById('mod-estado-txt').innerText = equipo.estado;
+            
+            const fotoContainer = document.getElementById('mod-foto-container');
+            if (equipo.fotoDriveUrl) { fotoContainer.innerHTML = `<img src="${equipo.fotoDriveUrl}" alt="Foto Ingreso">`; } 
+            else { fotoContainer.innerHTML = `<div class="foto-placeholder">📷 Sin foto registrada</div>`; }
+
+            const tbodyRepuestos = document.getElementById('mod-tabla-repuestos').querySelector('tbody');
+            tbodyRepuestos.innerHTML = '';
+            
+            if (equipo.repuestos && equipo.repuestos.length > 0) {
+                const repListos = equipo.repuestos.filter(r => r.disponible).length;
+                document.getElementById('contador-repuestos').innerText = `${repListos} de ${equipo.repuestos.length} Listos`;
+                equipo.repuestos.forEach((rep, index) => {
+                    const isChecked = rep.disponible ? 'checked' : ''; const colorFondo = rep.disponible ? 'background-color: #f0fdf4;' : '';
+                    const estiloDesc = rep.disponible ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: var(--text-main);';
+                    tbodyRepuestos.innerHTML += `<tr style="${colorFondo}"><td style="text-align:center;"><input type="checkbox" ${isChecked} onchange="toggleRepuesto('${equipo.id}', ${index})" style="width: 18px; height: 18px; cursor: pointer;"></td><td style="font-family:monospace; font-weight:600;">${rep.codigo}</td><td style="text-align: center;">${rep.cantidad}</td><td style="${estiloDesc}">${rep.descripcion}</td><td style="font-weight:500;">$${rep.total}</td></tr>`;
+                });
+            } else {
+                document.getElementById('contador-repuestos').innerText = `0/0 Listos`;
+                tbodyRepuestos.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding: 20px;">No se ha cargado presupuesto</td></tr>';
+            }
+            renderizarBitacora();
+        }
+
+        window.toggleRepuesto = function(equipoId, index) {
+            const equipo = equipos.find(e => e.id === equipoId);
+            equipo.repuestos[index].disponible = !equipo.repuestos[index].disponible;
+            cargarDatosEnModal(equipo);
+        }
+
+        function renderizarBitacora() {
+            const equipo = equipos.find(e => e.id === equipoActivoId);
+            const cont = document.getElementById('contenedor-bitacora'); cont.innerHTML = '';
+            [...equipo.bitacora].reverse().forEach(b => { cont.innerHTML += `<div class="nota-bitacora"><div class="nota-fecha">${b.fecha}</div><div style="color:var(--text-main);">${b.nota}</div></div>`; });
+        }
+
+        window.agregarNotaBoton = function() {
+            const txt = document.getElementById('nueva-nota').value.trim();
+            if(txt) { 
+                const equipo = equipos.find(e => e.id === equipoActivoId);
+                equipo.bitacora.push({ fecha: new Date().toLocaleString('es-CL'), nota: txt });
+                renderizarBitacora(); document.getElementById('nueva-nota').value = ''; 
+            }
+        }
+
+        window.guardarCambiosModal = async function() {
+            const equipo = equipos.find(e => e.id === equipoActivoId);
+            document.getElementById('loading-overlay').style.display = 'flex';
+            
+            let listos = []; let pendientes = [];
+            if (window.repuestosIniciales && equipo.repuestos) {
+                equipo.repuestos.forEach((rep, i) => {
+                    const inicial = window.repuestosIniciales[i];
+                    if (inicial && inicial.disponible !== rep.disponible) {
+                        if (rep.disponible) listos.push(`${rep.codigo} (${rep.cantidad} un.)`); else pendientes.push(`${rep.codigo} (${rep.cantidad} un.)`);
+                    }
+                });
+                if (listos.length > 0 || pendientes.length > 0) {
+                    let msg = `📦 **Actualización de Repuestos:**`;
+                    if (listos.length > 0) msg += `<br>✅ Entregados/Listos: ${listos.join(", ")}`;
+                    if (pendientes.length > 0) msg += `<br>❌ Vueltos a Pendiente: ${pendientes.join(", ")}`;
+                    equipo.bitacora.push({ fecha: new Date().toLocaleString('es-CL'), nota: msg });
+                }
+            }
+
+            const nuevoEstado = document.getElementById('mod-estado').value;
+            if(equipo.estado !== nuevoEstado) { 
+                equipo.bitacora.push({ fecha: new Date().toLocaleString('es-CL'), nota: `🔄 Estado cambiado a: **${nuevoEstado}**` });
+                equipo.estado = nuevoEstado; 
+            }
+            equipo.tecnico = document.getElementById('mod-tecnico').value;
+            
+            try {
+                const docRef = doc(db, "equipos", equipoActivoId);
+                await updateDoc(docRef, { estado: equipo.estado, tecnico: equipo.tecnico, repuestos: equipo.repuestos, bitacora: equipo.bitacora });
+                window.cerrarModal(true); 
+            } catch (error) { alert("Error al actualizar la nube."); } finally { document.getElementById('loading-overlay').style.display = 'none'; }
+        }
+
+        // LECTURA DE PDF
+        document.getElementById('pdf-modal-upload').addEventListener('change', async function(e) {
+            const file = e.target.files[0]; if(!file || !equipoActivoId) return;
+            document.getElementById('pdf-loading').style.display = 'block';
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const typedarray = new Uint8Array(this.result);
+                try {
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise; let itemsEspaciales = [];
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i); const textContent = await page.getTextContent();
+                        textContent.items.forEach(item => { if (item.str.trim().length > 0) { itemsEspaciales.push({ texto: item.str.trim(), x: item.transform[4], y: item.transform[5] - (i * 1000) }); } });
+                    }
+                    itemsEspaciales.sort((a, b) => { if (Math.abs(a.y - b.y) > 5) return b.y - a.y; return a.x - b.x; });
+                    const equipo = equipos.find(e => e.id === equipoActivoId); let texto = itemsEspaciales.map(item => item.texto).join(" ");
+                    
+                    let nReq = equipo.req; let nCot = equipo.cotizacion; let nCliente = equipo.cliente;
+                    let nSubtotal = equipo.subtotal; let nTotal = equipo.totalCotizacion; let repuestosExtraidos = [];
+
+                    const matchCot = texto.match(/COTIZACI[OÓ]N\s*[:N°#]?\s*(\d+)/i); if (matchCot) nCot = matchCot[1];
+                    const matchReq = texto.match(/REQ\s*[-_:]?\s*(\d+)/i); if (matchReq) nReq = `REQ-${matchReq[1]}`;
+                    const matchCliente = texto.match(/RAZ[OÓ]N\s*SOCIAL\s*[:\-]?\s*(.*?)\s*(?:DIRECCI[OÓ]N|R\.?U\.?T\.?|GIRO|CIUDAD)/i); if (matchCliente && matchCliente[1].trim() !== '') nCliente = matchCliente[1].trim();
+                    const matchSubtotal = texto.match(/Sub\s*Total\s*[:$]?\s*([\d.,]+)/i); if (matchSubtotal) nSubtotal = matchSubtotal[1].trim();
+                    const matchesTotal = [...texto.matchAll(/Total\s*[:$]?\s*([\d.,]+)/gi)]; if (matchesTotal.length > 0) nTotal = matchesTotal[matchesTotal.length - 1][1].trim();
+
+                    const regexRepuestos = /([a-zA-Z0-9]{8,15})\s+(\d+[,.]\d{1,2})\s+(.*?)\s+([\d,.]+)\s+\d+\s*%\s+([\d,.]+)/g; let matchRepuesto;
+                    while ((matchRepuesto = regexRepuestos.exec(texto)) !== null) {
+                        if (/\d/.test(matchRepuesto[1])) { repuestosExtraidos.push({ codigo: matchRepuesto[1].trim().toUpperCase(), cantidad: matchRepuesto[2].replace(',00', '').trim(), descripcion: matchRepuesto[3].trim(), total: matchRepuesto[5].trim(), disponible: false }); }
+                    }
+
+                    let cambiosVisuales = [];
+                    if (matchCot) { equipo.cotizacion = nCot; cambiosVisuales.push(`Cot. ${nCot}`); }
+                    if (matchReq && nReq !== equipo.req) { equipo.req = nReq; cambiosVisuales.push(`REQ ${nReq}`); }
+                    if (nSubtotal !== '--' && nSubtotal !== equipo.subtotal) { equipo.subtotal = nSubtotal; }
+                    if (nTotal !== '--' && nTotal !== equipo.totalCotizacion) { equipo.totalCotizacion = nTotal; cambiosVisuales.push(`Total $${nTotal}`); }
+                    if (nCliente !== '--' && nCliente !== equipo.cliente) { equipo.cliente = nCliente; }
+                    if (repuestosExtraidos.length > 0) { equipo.repuestos = repuestosExtraidos; cambiosVisuales.push(`${repuestosExtraidos.length} repuestos`); }
+
+                    if (cambiosVisuales.length > 0) {
+                        if(equipo.estado === 'Ingresado' || equipo.estado === 'En Revisión') equipo.estado = 'Esperando Aprobación';
+                        equipo.bitacora.push({ fecha: new Date().toLocaleString('es-CL'), nota: `📑 PDF Procesado: Se cargó ${cambiosVisuales.join(", ")}.` });
+                        const docRef = doc(db, "equipos", equipoActivoId);
+                        await updateDoc(docRef, { cotizacion: equipo.cotizacion, req: equipo.req, subtotal: equipo.subtotal, totalCotizacion: equipo.totalCotizacion, cliente: equipo.cliente, repuestos: equipo.repuestos, estado: equipo.estado, bitacora: equipo.bitacora });
+                        window.repuestosIniciales = JSON.parse(JSON.stringify(equipo.repuestos)); cargarDatosEnModal(equipo);
+                    } else { alert("No se detectaron repuestos o datos válidos en este formato."); }
+                } catch (error) { alert("Ocurrió un error al procesar el archivo PDF."); } finally { document.getElementById('pdf-loading').style.display = 'none'; document.getElementById('pdf-modal-upload').value = ''; }
+            }; reader.readAsArrayBuffer(file);
+        });
+
+        // IMPRESIÓN (Actas y Reportes)
+        window.generarActaPDF = function() {
+            const eq = equipos.find(e => e.id === equipoActivoId); if (!eq) return;
+            const repuestosInstalados = (eq.repuestos || []).filter(r => r.disponible);
+            let tablaRepuestosHTML = repuestosInstalados.length > 0 ? `<table class="print-table"><thead><tr><th>Código</th><th>Cant.</th><th>Descripción del Repuesto</th></tr></thead><tbody>${repuestosInstalados.map(r => `<tr><td>${r.codigo}</td><td>${r.cantidad}</td><td>${r.descripcion}</td></tr>`).join('')}</tbody></table>` : `<p style="font-style: italic; color: #64748b;">No se registraron repuestos instalados para esta entrega.</p>`;
+            let bitacoraHTML = eq.bitacora.map(b => `<div class="print-log"><div class="print-log-date">${b.fecha}</div><div>${b.nota}</div></div>`).join('');
+            const printHTML = `<div class="print-header"><h1>ACTA DE ENTREGA DE EQUIPO</h1><p>Documento Oficial de Servicio Técnico - FIXEAT / MAQUIPAN</p></div><div class="print-section"><div class="print-section-title">Datos del Servicio</div><div class="print-grid"><div><span>Fecha Emisión:</span> ${new Date().toLocaleDateString('es-CL')}</div><div><span>Estado Final:</span> ${eq.estado}</div><div><span>Cliente:</span> ${eq.cliente}</div><div><span>Técnico:</span> ${eq.tecnico || 'N/A'}</div><div><span>REQ:</span> ${eq.req}</div><div><span>Cotización:</span> ${eq.cotizacion}</div></div></div><div class="print-section"><div class="print-section-title">Información del Equipo</div><div class="print-grid"><div><span>Equipo:</span> ${eq.equipo}</div><div><span>N° Serie:</span> ${eq.serie}</div></div><div style="font-size: 14px; margin-top: 10px;"><strong>Falla Inicial Reportada:</strong><br>${eq.falla}</div></div><div class="print-section"><div class="print-section-title">Repuestos Instalados</div>${tablaRepuestosHTML}</div><div class="print-section page-break"><div class="print-section-title">Historial de Bitácora</div>${bitacoraHTML}</div><div class="signatures"><div class="sig-box"><div class="sig-line">Firma del Cliente</div><div class="sig-role">Recibe Conforme</div></div><div class="sig-box"><div class="sig-line">Personal de Taller</div><div class="sig-role">Entrega Conforme</div></div></div>`;
+            document.getElementById('printArea').innerHTML = printHTML; setTimeout(() => { window.print(); }, 200);
+        }
+
+        window.imprimirListadoReporte = function() {
+            if (arrayFiltradoActual.length === 0) return alert("No hay equipos para generar reporte.");
+            const estadoFiltro = document.getElementById('filtro-estado').value || "Todos"; const desdeFiltro = document.getElementById('filtro-desde').value ? formatearFecha(document.getElementById('filtro-desde').value) : "Inicio"; const hastaFiltro = document.getElementById('filtro-hasta').value ? formatearFecha(document.getElementById('filtro-hasta').value) : "Hoy";
+            let filas = arrayFiltradoActual.map(eq => `<tr><td><strong>${eq.req}</strong><br><span style="font-size:0.9em; color:#64748b;">Cot: ${eq.cotizacion}</span></td><td>${eq.cliente}</td><td>${eq.equipo}<br><span style="font-size:0.9em; color:#64748b;">SN: ${eq.serie}</span></td><td>${formatearFecha(eq.fechaIngreso)}</td><td>${eq.estado}</td></tr>`).join('');
+            const printHTML = `<div class="print-header"><h1>REPORTE DE EQUIPOS EN TALLER</h1><p>Emitido el: ${new Date().toLocaleDateString('es-CL')} a las ${new Date().toLocaleTimeString('es-CL')}</p></div><div class="print-section" style="background-color: #f8fafc; padding: 15px; border: 1px solid #e2e8f0; margin-bottom: 20px;"><div class="print-section-title" style="border:none; margin-bottom:5px;">Filtros Aplicados</div><p style="margin:0; font-size:14px;"><strong>Estado:</strong> ${estadoFiltro} | <strong>Periodo:</strong> ${desdeFiltro} al ${hastaFiltro} | <strong>Total Equipos:</strong> ${arrayFiltradoActual.length}</p></div><table class="print-table"><thead><tr><th>Documentos</th><th>Cliente</th><th>Equipo / Serie</th><th>F. Ingreso</th><th>Estado Actual</th></tr></thead><tbody>${filas}</tbody></table>`;
+            document.getElementById('printArea').innerHTML = printHTML; setTimeout(() => { window.print(); }, 200);
+        }
+
+        window.onclick = function(event) { if (event.target == modalDetalle) window.cerrarModal(false); }
+    </script>
+</body>
+</html>
