@@ -375,10 +375,13 @@
                     <div class="detalle-item"><span>🗣️ Falla Reportada (Cliente)</span><strong id="mod-falla" style="font-weight: 400; font-size: 0.95em;"></strong></div>
                     
                     <hr style="border:0; border-top:1px solid var(--border-color); margin:20px 0;">
-                    <h3 style="font-size: 1.1em; margin-top: 0; color: var(--primary-color); display: flex; justify-content: space-between;">
-                        Repuestos Asignados
-                        <span id="contador-repuestos" style="font-size: 0.8em; color: var(--text-muted); background: #f1f5f9; padding: 2px 8px; border-radius: 12px;">0/0 Listos</span>
-                    </h3>
+                    <h3 style="font-size: 1.1em; margin-top: 0; color: var(--primary-color); display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        Repuestos Asignados
+        <button onclick="toggleTodosRepuestos()" type="button" class="btn-outline" style="padding: 4px 8px; font-size: 0.7em; margin: 0; border-radius: 6px;">☑️ Marcar/Desmarcar Todos</button>
+    </div>
+    <span id="contador-repuestos" style="font-size: 0.8em; color: var(--text-muted); background: #f1f5f9; padding: 2px 8px; border-radius: 12px;">0/0 Listos</span>
+</h3>
                     <table class="tabla-mini" id="mod-tabla-repuestos">
                         <thead><tr><th style="width: 30px; text-align: center;">✔️</th><th>Código</th><th style="text-align: center;">Cant.</th><th>Descripción</th><th>Valor</th></tr></thead>
                         <tbody></tbody>
@@ -923,7 +926,23 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
         }
 
         window.toggleRepuesto = function(equipoId, index) { const equipo = equipos.find(e => e.id === equipoId); equipo.repuestos[index].disponible = !equipo.repuestos[index].disponible; cargarDatosEnModal(equipo); }
+        window.toggleTodosRepuestos = function() {
+            if (!equipoActivoId) return;
+            const equipo = equipos.find(e => e.id === equipoActivoId);
+            if (!equipo || !equipo.repuestos || equipo.repuestos.length === 0) return;
 
+            // Verificamos si ya están TODOS marcados
+            const todosMarcados = equipo.repuestos.every(r => r.disponible);
+            
+            // Si están todos marcados, los desmarcamos. Si no, los marcamos todos al 100%.
+            equipo.repuestos.forEach(rep => {
+                rep.disponible = !todosMarcados;
+            });
+            
+            // Recargamos el modal para que los tickets visuales se actualicen al instante
+            cargarDatosEnModal(equipo);
+        }
+        
         function renderizarBitacora() {
             const equipo = equipos.find(e => e.id === equipoActivoId); const cont = document.getElementById('contenedor-bitacora'); cont.innerHTML = '';
             [...equipo.bitacora].reverse().forEach(b => { cont.innerHTML += `<div class="nota-bitacora"><div class="nota-fecha">${b.fecha}</div><div style="color:var(--text-main);">${b.nota}</div></div>`; });
