@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor y Reportes - Taller Maquipan</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #1e293b; --secondary-color: #3b82f6; --secondary-hover: #2563eb;
+            --success-color: #10b981; --warning-color: #f59e0b; --danger-color: #ef4444; 
+            --bg-color: #f1f5f9; --card-bg: #ffffff; --text-main: #334155;
+            --text-muted: #64748b; --border-color: #e2e8f0;
+            --radius-md: 10px; --radius-lg: 16px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            font-family: 'Inter', sans-serif;
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 25px 20px; line-height: 1.5; }
+        .container { max-width: 1500px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+        .header { background: linear-gradient(135deg, #475569 0%, #334155 100%); color: white; padding: 20px 30px; border-radius: var(--radius-lg); display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md); flex-wrap: wrap; gap: 15px;}
+        .header h1 { margin: 0; font-size: 1.6em; font-weight: 600; letter-spacing: -0.5px; }
+        #reloj { font-weight: 500; font-size: 1.1em; opacity: 0.9; }
+        
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+        .stat-card { background: var(--card-bg); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); }
+        .stat-card.ingresados { border-left: 5px solid var(--primary-color); }
+        .stat-card.revision { border-left: 5px solid var(--warning-color); }
+        .stat-card.reparados { border-left: 5px solid var(--success-color); }
+        .stat-card.cotizado { border-left: 5px solid var(--secondary-color); }
+        .stat-info h3 { margin: 0; font-size: 0.85em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .stat-number { font-size: 2.2em; font-weight: 700; margin-top: 5px; color: var(--primary-color); line-height: 1; }
+
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .chart-container { background: var(--card-bg); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); position: relative; height: 300px; display: flex; flex-direction: column; align-items: center;}
+        .chart-title { font-size: 1em; font-weight: 600; color: var(--primary-color); margin-bottom: 15px; text-align: center; width: 100%; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;}
+        .chart-wrapper { position: relative; width: 100%; height: 100%; display: flex; justify-content: center;}
+
+        .card { background-color: var(--card-bg); padding: 25px; border-radius: var(--radius-md); box-shadow: var(--shadow-md); border: 1px solid var(--border-color); }
+        .form-row { display: flex; gap: 15px; }
+        .form-group { margin-bottom: 15px; flex: 1; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85em; color: var(--text-main); }
+        input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: 'Inter', sans-serif; font-size: 0.9em; color: var(--text-main); background-color: #f8fafc; }
+        
+        button { background-color: var(--secondary-color); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.95em; transition: background-color 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px;}
+        button:hover { background-color: var(--secondary-hover); }
+        .btn-secondary { background-color: #475569; }
+        .btn-outline { background-color: white; color: var(--text-main); border: 1px solid #cbd5e1; }
+
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
+        .filtros-box { background-color: #f8fafc; padding: 15px 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 20px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        th, td { padding: 16px 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background-color: #f8fafc; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.8em; border-bottom: 2px solid var(--border-color);}
+
+        .tabla-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-color); margin-right: 12px; }
+        .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600; display: inline-block; }
+        .estado-ingresado { background-color: #ffedd5; color: #c2410c; } 
+        .estado-revision { background-color: #e0f2fe; color: #0369a1; }  
+        .estado-reparado { background-color: #dcfce7; color: #15803d; }  
+        .estado-esperando { background-color: #f3e8ff; color: #7e22ce; } 
+        .btn-accion { padding: 8px 14px; font-size: 0.85em; width: auto; background-color: white; color: var(--text-main); border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; border-radius: 6px; font-weight: 500;}
+
+
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+        .modal-content { background-color: var(--card-bg); border-radius: var(--radius-lg); width: 95%; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; max-width: 1100px; height: 90vh; }
+
+        .modal-header { background-color: var(--primary-color); color: white; padding: 18px 25px; display: flex; justify-content: space-between; align-items: center; }
+        .close { color: white; font-size: 28px; font-weight: 300; cursor: pointer; }
+        
+        .modal-body-wrapper { display: grid; grid-template-columns: 1.2fr 1fr; flex: 1; overflow: hidden; }
+        .modal-body-left { padding: 30px; border-right: 1px solid var(--border-color); overflow-y: auto; }
+        .modal-body-right { padding: 30px; background-color: #f8fafc; overflow-y: auto; }
+
+        .form-section-title { font-size: 1em; color: var(--secondary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 15px; font-weight: 600;}
+        .detalle-item { margin-bottom: 15px; }
+        .detalle-item span { display: block; font-size: 0.75em; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 2px;}
+        .valor-visor { font-size: 1.05em; font-weight: 500; color: var(--text-main); display: block; padding: 5px 0; }
+
+        .foto-equipo-container { margin-bottom: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background-color: #f1f5f9; display: flex; overflow-x: auto; gap: 10px; padding: 10px; max-height: 200px; }
+        .foto-equipo-container img { max-height: 170px; border-radius: 6px; object-fit: contain; border: 1px solid #cbd5e1;}
+
+        .bitacora-container { flex-grow: 1; min-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: white; padding: 15px; }
+        .nota-bitacora { border-left: 3px solid var(--secondary-color); padding: 10px 12px; margin-bottom: 12px; background-color: #f8fafc; font-size: 0.9em; }
+        .nota-fecha { font-size: 0.8em; color: var(--text-muted); margin-bottom: 4px; }
+        
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; color: white; font-size: 1.5em; justify-content: center; align-items: center; flex-direction: column;}
+        
+        /* RESTAURAMOS EL FORMATO ORIGINAL DE IMPRESIÓN (Márgenes de 1.5cm y estilos de Acta) */
+        .print-area { display: none; } 
+        @media print {
+            body * { visibility: hidden; } 
+            .print-area, .print-area * { visibility: visible; }
+            @page { margin: 1.5cm; }
+            .print-area { display: block; position: absolute; left: 0; top: 0; width: 100%; box-sizing: border-box; background: white; color: black; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;}
+            .print-header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-bottom: 25px; }
+            .print-logo { max-width: 200px; max-height: 70px; object-fit: contain; }
+            .print-header-text { text-align: right; }
+            .print-header-text h1 { margin: 0; font-size: 22px; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;}
+            .print-header-text p { margin: 4px 0 0; font-size: 12px; color: #475569; font-weight: 500;}
+            .print-section { margin-bottom: 25px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; page-break-inside: avoid; }
+            .print-section-title { font-size: 13px; font-weight: bold; color: white; background-color: #1e293b; padding: 8px 12px; margin: -15px -15px 15px -15px; border-radius: 5px 5px 0 0; text-transform: uppercase; letter-spacing: 0.5px; -webkit-print-color-adjust: exact;}
+            
+            .print-summary-box { background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-between; -webkit-print-color-adjust: exact; }
+            .print-summary-item { text-align: center; flex: 1; border-right: 1px solid #cbd5e1; padding: 0 10px;}
+            .print-summary-item:last-child { border-right: none; }
+            .print-summary-value { font-size: 17px; font-weight: bold; color: #1e293b; margin-top: 5px; }
+            .print-summary-label { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: bold; }
+
+            .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; }
+            .print-grid div span { font-weight: bold; color: #475569; display: inline-block; width: 140px; }
+            .diagnosis-box { border: 1px solid #cbd5e1; padding: 12px; margin-top: 12px; font-size: 12px; border-radius: 6px; background-color: #f8fafc; -webkit-print-color-adjust: exact;}
+            .diagnosis-title { font-weight: bold; font-size: 11px; text-transform: uppercase; margin-bottom: 6px; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;}
+            .diagnosis-content { line-height: 1.5; color: #334155; margin-top: 5px;}
+            .print-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px;}
+            .print-table th, .print-table td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+            .print-table th { background-color: #e2e8f0 !important; -webkit-print-color-adjust: exact; font-weight: bold; color: #1e293b; text-transform: uppercase;}
+            .signatures { display: flex; justify-content: space-between; margin-top: 60px; padding: 0 30px; page-break-inside: avoid;}
+            .sig-box { text-align: center; width: 40%; }
+            .sig-line { border-top: 1px solid #334155; padding-top: 8px; font-size: 13px; font-weight: bold; margin-top: 70px;}
+            .sig-role { font-size: 11px; color: #64748b; margin-top: 3px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">⏳ Cargando información...</div>
+    <div id="printArea" class="print-area"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Consulta de Equipos y Reportes Taller</h1>
+            <div id="reloj">--:--</div>
+        </div>
+
+        <div class="dashboard">
+            <div class="stat-card ingresados"><div class="stat-info"><h3>Total en Taller</h3><div class="stat-number" id="count-ingresados">0</div></div></div>
+            <div class="stat-card revision"><div class="stat-info"><h3>En Revisión / Ppto</h3><div class="stat-number" id="count-revision">0</div></div></div>
+            <div class="stat-card reparados"><div class="stat-info"><h3>Reparados (Mes)</h3><div class="stat-number" id="count-reparados-mes">0</div></div></div>
+            <div class="stat-card cotizado"><div class="stat-info"><h3>Facturable (Mes)</h3><div class="stat-number" id="count-cotizado-mes">$0</div></div></div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">Distribución General por Estado</div>
+                <div class="chart-wrapper"><canvas id="chartEstados"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Carga de Trabajo por Técnico</div>
+                <div class="chart-wrapper"><canvas id="chartTecnicos"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="toolbar">
+                <h2 style="border:none; margin:0; padding:0;">📊 Control General y Filtros</h2>
+                <button onclick="imprimirListadoReporte()" class="btn-secondary" style="width: auto; margin:0;">🖨️ Generar Reporte a Jefatura (PDF)</button>
+            </div>
+
+            <div class="filtros-box">
+                <div class="form-row" style="align-items: flex-end; flex-wrap: wrap;">
+                    <div class="form-group" style="min-width: 250px;"><label>Buscar:</label><input type="search" id="busqueda-taller" placeholder="Cliente, Serie o Req..." onkeyup="aplicarFiltros()"></div>
+                    
+                    <div class="form-group" style="min-width: 200px;">
+                        <label>Estado:</label>
+                        <select id="filtro-estado" onchange="aplicarFiltros()">
+                            <option value="">Todos los estados</option>
+                            <option value="Ingresado">Ingresado</option>
+                            <option value="En Revisión">En Revisión</option>
+                            <option value="Esperando Aprobación">Esperando Aprobación</option>
+                            <option value="Aprobado - Esperando Repuesto">Esperando Repuestos</option>
+                            <option value="En Reparación">En Reparación</option>
+                            <option value="Reparado">Reparado / Listo</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="min-width: 130px;"><label>Desde:</label><input type="date" id="filtro-desde" onchange="aplicarFiltros()"></div>
+                    <div class="form-group" style="min-width: 130px;"><label>Hasta:</label><input type="date" id="filtro-hasta" onchange="aplicarFiltros()"></div>
+                    <div class="form-group" style="flex: 0; min-width: 100px;"><button onclick="limpiarFiltros()" class="btn-outline" style="margin: 0; width: 100%;">Limpiar</button></div>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table id="tablaEquipos">
+                    <thead><tr><th>Documentos</th><th>Cliente & Equipo</th><th>Fechas</th><th>Estado</th><th style="text-align: right;">Acción</th></tr></thead>
+                    <tbody id="tablaBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDetalle" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-titulo">Detalles del Equipo</h2>
+                <span class="close" onclick="cerrarModal()">&times;</span>
+            </div>
+            <div class="modal-body-wrapper">
+                <div class="modal-body-left">
+                    <h3 class="form-section-title">📸 Registro Fotográfico</h3>
+                    <div id="mod-foto-ingreso-container" class="foto-equipo-container"></div>
+                    <div id="mod-foto-entrega-container" class="foto-equipo-container"></div>
+
+                    <h3 class="form-section-title">📄 Información del Servicio</h3>
+                    <div class="form-row">
+                        <div class="detalle-item"><span>N° Req</span><div id="mod-req" class="valor-visor"></div></div>
+                        <div class="detalle-item"><span>Cotización</span><div id="mod-cotizacion" class="valor-visor"></div></div>
+                        <div class="detalle-item"><span>Nota Venta</span><div id="mod-nv" class="valor-visor"></div></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="detalle-item"><span>Total (Con IVA)</span><div id="mod-total" class="valor-visor" style="color:var(--success-color); font-weight:700;"></div></div>
+                        <div class="detalle-item"><span>Estado</span><div id="mod-estado-txt" class="valor-visor"></div></div>
+                    </div>
+                    
+                    <div class="detalle-item"><span>Cliente</span><div id="mod-cliente" class="valor-visor"></div></div>
+                    <div class="detalle-item"><span>Equipo</span><div id="mod-equipo" class="valor-visor"></div></div>
+                    <div class="detalle-item"><span>N° Serie</span><div id="mod-serie" class="valor-visor"></div></div>
+                </div>
+
+                <div class="modal-body-right">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #cbd5e1;">
+                        <div><span>ID Único:</span><strong id="mod-folio" style="font-size:1.4em; display:block;"></strong></div>
+                        <div id="qrcode-box" style="width: 64px; height: 64px; background:white; padding:5px; border-radius:4px; border:1px solid #cbd5e1;"></div>
+                    </div>
+
+                    <div class="detalle-item"><span>Técnico Asignado:</span><div id="mod-tecnico" class="valor-visor"></div></div>
+                    <div class="detalle-item"><span>Falla Técnica:</span><div id="mod-falla-encontrada" class="valor-visor" style="background: #fffbeb; padding: 8px; border-radius: 4px;"></div></div>
+                    <div class="detalle-item"><span>Trabajo Realizado:</span><div id="mod-reparacion" class="valor-visor" style="background: #f0fdf4; padding: 8px; border-radius: 4px;"></div></div>
+
+                    <h3 class="form-section-title">🕒 Historial / Bitácora</h3>
+                    <div class="bitacora-container" id="contenedor-bitacora"></div>
+
+                    <button onclick="generarActaPDF()" class="btn-secondary" style="width: 100%; margin-top: 10px;">📄 Generar Acta Formal (PDF)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyADlIoxLkdXlozWTfq9praGdn4pgTeleSo",
+          authDomain: "ingreso-taller-6b023.firebaseapp.com",
+          projectId: "ingreso-taller-6b023",
+          storageBucket: "ingreso-taller-6b023.firebasestorage.app",
+          messagingSenderId: "728667262903",
+          appId: "1:728667262903:web:4a95246e0e1ee860e56232"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const equiposRef = collection(db, "equipos");
+
+        let equipos = [];
+        let arrayFiltradoActual = [];
+        let equipoActivoId = null;
+        let chartEstadosInstance = null;
+        let chartTecnicosInstance = null;
+
+        setInterval(() => { document.getElementById('reloj').innerText = new Date().toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'}); }, 1000);
+
+        function formatearFecha(f) { if(!f) return '--'; const p = f.split('-'); return p.length===3 ? `${p[2]}-${p[1]}-${p[0]}`:f; }
+        
+        function parseMonto(montoStr) {
+            if (!montoStr || montoStr === '--') return 0;
+            return parseInt(montoStr.toString().replace(/[^0-9]/g, '')) || 0;
+        }
+
+        document.getElementById('loading-overlay').style.display = 'flex';
+        
+        const q = query(equiposRef, orderBy("timestamp", "desc"), limit(300));
+        onSnapshot(q, (snapshot) => {
+            equipos = [];
+            snapshot.forEach((doc) => { equipos.push({ id: doc.id, ...doc.data() }); });
+            window.aplicarFiltros();
+            document.getElementById('loading-overlay').style.display = 'none';
+        });
+
+        window.aplicarFiltros = function() {
+            const texto = document.getElementById('busqueda-taller').value.toLowerCase(); 
+            const estado = document.getElementById('filtro-estado').value;
+            const desde = document.getElementById('filtro-desde').value; 
+            const hasta = document.getElementById('filtro-hasta').value;
+
+            arrayFiltradoActual = equipos.filter(eq => {
+                const folioTxt = eq.folio ? eq.folio.toLowerCase() : '';
+                const nvTxt = eq.nv ? eq.nv.toLowerCase() : '';
+                const matchTexto = eq.cliente.toLowerCase().includes(texto) || eq.serie.toLowerCase().includes(texto) || eq.req.toLowerCase().includes(texto) || folioTxt.includes(texto) || nvTxt.includes(texto);
+                const matchEstado = estado === "" || eq.estado === estado;
+                
+                let matchFecha = true;
+                if (desde || hasta) {
+                    const fE = eq.fechaIngreso; 
+                    if (desde && fE < desde) matchFecha = false; 
+                    if (hasta && fE > hasta) matchFecha = false;
+                }
+                
+                return matchTexto && matchEstado && matchFecha;
+            });
+            
+            renderizarTabla(arrayFiltradoActual); 
+            actualizarDashboard(arrayFiltradoActual);
+        }
+
+        window.limpiarFiltros = function() {
+            document.getElementById('busqueda-taller').value = ''; 
+            document.getElementById('filtro-estado').value = '';
+            document.getElementById('filtro-desde').value = ''; 
+            document.getElementById('filtro-hasta').value = '';
+            window.aplicarFiltros();
+        }
+
+        function renderizarTabla(datos) {
+            const tbody = document.getElementById('tablaBody'); tbody.innerHTML = '';
+            if(datos.length === 0) { 
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay equipos en esta vista.</td></tr>'; 
+                return; 
+            }
+
+            datos.forEach(eq => {
+                let claseEstado = 'estado-revision';
+                if(eq.estado.includes('Reparado') || eq.estado.includes('En Reparación')) claseEstado = 'estado-reparado';
+                if(eq.estado === 'Ingresado') claseEstado = 'estado-ingresado';
+                if(eq.estado === 'Esperando Aprobación' || eq.estado.includes('Esperando Repuesto')) claseEstado = 'estado-esperando';
+
+                const folioBadge = eq.folio ? `<span style="background:#e2e8f0; color:#0f172a; padding:2px 6px; border-radius:4px; font-weight:700; font-size:0.85em; display:inline-block; margin-bottom:5px;">ID: ${eq.folio}</span><br>` : '';
+                const badgeReq = eq.req !== '--' ? `<span style="color:var(--secondary-color); font-weight:700; display:inline-block; margin-bottom:3px;">${eq.req}</span>` : '';
+                let valoresPpto = eq.totalCotizacion !== '--' ? `<br><strong style="color:var(--success-color); font-size: 0.9em;">Total: $${eq.totalCotizacion}</strong>` : '';
+                let textoNV = (eq.nv && eq.nv !== '--') ? `<br><span style="color:#6366f1; font-size:0.9em; font-weight:700;">NV: ${eq.nv}</span>` : '';
+                
+                let imagenThumbnail = eq.fotoDriveUrl && eq.fotoDriveUrl.startsWith("data:image") 
+                    ? `<img src="${eq.fotoDriveUrl}" class="tabla-thumb" alt="Miniatura">` 
+                    : `<div class="tabla-thumb" style="display:flex; justify-content:center; align-items:center; background-color:#e2e8f0; color:#94a3b8; font-size:1.5em;">📷</div>`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="min-width: 120px;">${folioBadge}${badgeReq}<br><span style="color:var(--text-muted); font-size:0.9em;">Cot: ${eq.cotizacion}</span>${textoNV}${valoresPpto}</td>
+                        <td style="display: flex; align-items: center; min-width: 300px;">${imagenThumbnail}<div><strong style="color:var(--primary-color); font-size: 1.05em;">${eq.cliente}</strong><br><span style="color:var(--text-main);">${eq.equipo}</span><br><small style="color:var(--text-muted);">(SN: ${eq.serie})</small></div></td>
+                        <td style="min-width: 110px; font-size:0.85em;"><span style="color:var(--text-muted);">Ingreso: ${formatearFecha(eq.fechaIngreso)}</span></td>
+                        <td><span class="badge ${claseEstado}">${eq.estado}</span></td>
+                        <td style="text-align: right;"><button class="btn-accion" onclick="abrirModal('${eq.id}')">👁️ Detalles</button></td>
+                    </tr>`;
+            });
+        }
+
+        function actualizarDashboard(datos) {
+            let totalIngresados = 0; let totalRevision = 0;
+            let reparadosMes = 0; let cotizadoMes = 0;
+            
+            const mesActual = new Date().getMonth();
+            const anioActual = new Date().getFullYear();
+
+            const contadorEstados = { 'Ingresado':0, 'En Revisión':0, 'Esperando Aprobación':0, 'Aprobado - Esperando Repuesto':0, 'En Reparación':0, 'Reparado / Listo':0 };
+            const contadorTecnicos = {};
+
+            datos.forEach(eq => {
+                if (eq.estado === 'Ingresado') totalIngresados++;
+                if (eq.estado !== 'Ingresado' && !eq.estado.includes('Reparado') && !eq.estado.includes('En Reparación')) totalRevision++;
+                
+                if (eq.fechaIngreso) {
+                    const [y, m, d] = eq.fechaIngreso.split('-');
+                    if (parseInt(m)-1 === mesActual && parseInt(y) === anioActual) {
+                        if (eq.estado.includes('Reparado')) reparadosMes++;
+                        cotizadoMes += parseMonto(eq.totalCotizacion);
+                    }
+                }
+
+                let estadoNormalizado = eq.estado === 'Reparado' ? 'Reparado / Listo' : eq.estado;
+                if(contadorEstados[estadoNormalizado] !== undefined) contadorEstados[estadoNormalizado]++;
+                
+                const tec = (eq.tecnico && eq.tecnico.trim() !== '') ? eq.tecnico.trim().toUpperCase() : 'SIN ASIGNAR';
+                contadorTecnicos[tec] = (contadorTecnicos[tec] || 0) + 1;
+            });
+
+            document.getElementById('count-ingresados').innerText = totalIngresados;
+            document.getElementById('count-revision').innerText = totalRevision;
+            document.getElementById('count-reparados-mes').innerText = reparadosMes;
+            document.getElementById('count-cotizado-mes').innerText = '$' + cotizadoMes.toLocaleString('es-CL');
+
+            if (chartEstadosInstance) chartEstadosInstance.destroy();
+            if (chartTecnicosInstance) chartTecnicosInstance.destroy();
+
+            const ctxEstados = document.getElementById('chartEstados').getContext('2d');
+            chartEstadosInstance = new Chart(ctxEstados, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(contadorEstados),
+                    datasets: [{
+                        data: Object.values(contadorEstados),
+                        backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6', '#a855f7', '#14b8a6', '#10b981'],
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: {font: {family: 'Inter', size: 11}} } } }
+            });
+
+            const sortedTecnicos = Object.entries(contadorTecnicos).sort((a,b) => b[1] - a[1]);
+            const ctxTecnicos = document.getElementById('chartTecnicos').getContext('2d');
+            chartTecnicosInstance = new Chart(ctxTecnicos, {
+                type: 'bar',
+                data: {
+                    labels: sortedTecnicos.map(t => t[0]),
+                    datasets: [{
+                        label: 'Equipos Asignados',
+                        data: sortedTecnicos.map(t => t[1]),
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: {stepSize: 1} } } }
+            });
+        }
+
+        window.abrirModal = function(id) {
+            const eq = equipos.find(e => e.id === id);
+            equipoActivoId = id;
+            
+            document.getElementById('mod-folio').innerText = eq.folio || 'N/A';
+            document.getElementById('mod-req').innerText = eq.req;
+            document.getElementById('mod-cotizacion').innerText = eq.cotizacion;
+            document.getElementById('mod-nv').innerText = eq.nv || '--';
+            document.getElementById('mod-total').innerText = eq.totalCotizacion !== '--' ? '$' + eq.totalCotizacion : '--';
+            document.getElementById('mod-cliente').innerText = eq.cliente;
+            document.getElementById('mod-equipo').innerText = eq.equipo;
+            document.getElementById('mod-serie').innerText = eq.serie;
+            document.getElementById('mod-tecnico').innerText = eq.tecnico || 'No asignado';
+            document.getElementById('mod-estado-txt').innerText = eq.estado;
+            document.getElementById('mod-falla-encontrada').innerText = eq.fallaEncontrada || 'Sin diagnóstico registrado aún.';
+            document.getElementById('mod-reparacion').innerText = eq.reparacionRealizada || 'Sin detalles de reparación.';
+
+            const ingresoCont = document.getElementById('mod-foto-ingreso-container');
+            ingresoCont.innerHTML = eq.fotosIngreso ? eq.fotosIngreso.map(f => `<img src="${f}">`).join('') : '';
+            if(eq.fotoDriveUrl) ingresoCont.innerHTML = `<img src="${eq.fotoDriveUrl}">` + ingresoCont.innerHTML;
+
+            const entregaCont = document.getElementById('mod-foto-entrega-container');
+            entregaCont.innerHTML = eq.fotosEntrega ? eq.fotosEntrega.map(f => `<img src="${f}">`).join('') : '';
+
+            const qrBox = document.getElementById('qrcode-box'); qrBox.innerHTML = '';
+            if (eq.folio) {
+                new QRCode(qrBox, { text: window.location.origin + window.location.pathname + "?folio=" + eq.folio, width: 54, height: 54 });
+            }
+
+            const bit = document.getElementById('contenedor-bitacora'); bit.innerHTML = '';
+            [...eq.bitacora].reverse().forEach(b => {
+                bit.innerHTML += `<div class="nota-bitacora"><div class="nota-fecha">${b.fecha}</div><div>${b.nota}</div></div>`;
+            });
+
+            document.getElementById('modalDetalle').style.display = 'flex';
+        }
+
+        window.cerrarModal = () => { document.getElementById('modalDetalle').style.display = 'none'; }
+
+        // FUNCION RESTAURADA PARA ACTA INDIVIDUAL DE EQUIPO EN PDF
+        window.generarActaPDF = function() {
+            const eq = equipos.find(e => e.id === equipoActivoId); if (!eq) return;
+            const repuestosInstalados = (eq.repuestos || []).filter(r => r.disponible);
+            
+            let tablaRepuestosHTML = repuestosInstalados.length > 0 
+                ? `<table class="print-table"><thead><tr><th>Código</th><th>Cant.</th><th>Descripción del Repuesto</th></tr></thead><tbody>${repuestosInstalados.map(r => `<tr><td>${r.codigo}</td><td>${r.cantidad}</td><td>${r.descripcion}</td></tr>`).join('')}</tbody></table>` 
+                : `<p style="font-style: italic; color: #64748b; font-size: 12px; padding: 10px 0;">No se registraron repuestos instalados para esta entrega.</p>`;
+            
+            let fotosIngresoHTML = ""; let fotosEntregaHTML = "";
+            let arrayIngreso = [];
+            if (eq.fotoDriveUrl && eq.fotoDriveUrl.startsWith("data:image")) arrayIngreso.push(eq.fotoDriveUrl);
+            if (eq.fotosExtra && eq.fotosExtra.length > 0) arrayIngreso.push(...eq.fotosExtra);
+            if (eq.fotosIngreso && eq.fotosIngreso.length > 0) arrayIngreso.push(...eq.fotosIngreso);
+
+            if (arrayIngreso.length > 0) {
+                fotosIngresoHTML = `<div style="margin-bottom: 20px;">
+                    <div class="diagnosis-title" style="border:none; color:#1e293b;">Registro Visual de Ingreso / Revisión</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 5px; justify-content: center;">` + 
+                    arrayIngreso.map(img => `<img src="${img}" style="max-height:220px; max-width:48%; border: 1px solid #cbd5e1; border-radius:6px; object-fit: contain;">`).join('') + 
+                    `</div></div>`;
+            }
+
+            if (eq.fotosEntrega && eq.fotosEntrega.length > 0) {
+                fotosEntregaHTML = `<div style="margin-bottom: 20px;">
+                    <div class="diagnosis-title" style="border:none; color:#1e293b;">Registro Visual de Entrega / Reparado</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 5px; justify-content: center;">` + 
+                    eq.fotosEntrega.map(img => `<img src="${img}" style="max-height:220px; max-width:48%; border: 1px solid #cbd5e1; border-radius:6px; object-fit: contain;">`).join('') + 
+                    `</div></div>`;
+            }
+
+            let seccionFotosHTML = "";
+            if (fotosIngresoHTML !== "" || fotosEntregaHTML !== "") {
+                seccionFotosHTML = `<div class="print-section" style="page-break-inside: avoid;">
+                                        <div class="print-section-title">Anexo Fotográfico</div>
+                                        ${fotosIngresoHTML}
+                                        ${fotosEntregaHTML}
+                                    </div>`;
+            }
+
+            const fallaInicialTxt = eq.falla ? eq.falla.replace(/\n/g, '<br>') : 'Sin registro preliminar.';
+            const fallaEncontradaTxt = eq.fallaEncontrada ? eq.fallaEncontrada.replace(/\n/g, '<br>') : '<span style="color:#94a3b8; font-style:italic;">No se registró diagnóstico técnico adicional.</span>';
+            const reparacionTxt = eq.reparacionRealizada ? eq.reparacionRealizada.replace(/\n/g, '<br>') : '<span style="color:#94a3b8; font-style:italic;">No se registraron trabajos realizados en sistema.</span>';
+
+            const urlLogoTaller = "Logo.jpg"; 
+
+            const printHTML = `
+                <div class="print-header-container">
+                    <div>
+                        <img src="${urlLogoTaller}" alt="Logo Empresa" class="print-logo" onerror="this.style.display='none'">
+                    </div>
+                    <div class="print-header-text">
+                        <h1>Acta de Servicio Técnico</h1>
+                        <p><strong>TALLER MAQUIPAN</strong></p>
+                        <p style="margin-top:8px;">Folio de Atención: <strong>${eq.folio || eq.req}</strong></p>
+                    </div>
+                </div>
+                
+                <div class="print-section">
+                    <div class="print-section-title">Información General del Servicio</div>
+                    <div class="print-grid">
+                        <div><span>Cliente / Sucursal:</span> ${eq.cliente}</div>
+                        <div><span>Estado Final:</span> ${eq.estado}</div>
+                        <div><span>Técnico a Cargo:</span> ${eq.tecnico || 'No asignado'}</div>
+                        <div><span>Cotización Asoc.:</span> ${eq.cotizacion}</div>
+                        <div><span>Fecha de Ingreso:</span> ${formatearFecha(eq.fechaIngreso)}</div>
+                        <div><span>Fecha de Emisión:</span> ${new Date().toLocaleDateString('es-CL')}</div>
+                    </div>
+                </div>
+                
+                <div class="print-section">
+                    <div class="print-section-title">Identificación y Diagnóstico del Equipo</div>
+                    <div class="print-grid" style="margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px;">
+                        <div><span>Equipo / Modelo:</span> ${eq.equipo}</div>
+                        <div><span>N° de Serie:</span> ${eq.serie}</div>
+                    </div>
+                    
+                    <div class="diagnosis-box">
+                        <div class="diagnosis-title">Falla Inicial Reportada (Según Cliente)</div>
+                        <div class="diagnosis-content">${fallaInicialTxt}</div>
+                    </div>
+
+                    <div class="diagnosis-box">
+                        <div class="diagnosis-title">Falla Técnica Encontrada (Diagnóstico Taller)</div>
+                        <div class="diagnosis-content">${fallaEncontradaTxt}</div>
+                    </div>
+
+                    <div class="diagnosis-box">
+                        <div class="diagnosis-title">Reparación Realizada / Trabajos Ejecutados</div>
+                        <div class="diagnosis-content">${reparacionTxt}</div>
+                    </div>
+                </div>
+                
+                ${seccionFotosHTML}
+
+                <div class="print-section">
+                    <div class="print-section-title">Repuestos y Materiales Instalados</div>
+                    ${tablaRepuestosHTML}
+                </div>
+                
+                <div class="signatures">
+                    <div class="sig-box">
+                        <div class="sig-line">Firma y Nombre del Cliente</div>
+                        <div class="sig-role">Recibe Conforme (Fecha: ___/___/_____)</div>
+                    </div>
+                    <div class="sig-box">
+                        <div class="sig-line">Firma y Nombre del Técnico</div>
+                        <div class="sig-role">Entrega Conforme (Taller MAQUIPAN)</div>
+                    </div>
+                </div>`;
+                
+            document.getElementById('printArea').innerHTML = printHTML; 
+            setTimeout(() => { window.print(); }, 300);
+        }
+
+        window.imprimirListadoReporte = function() {
+            if (arrayFiltradoActual.length === 0) return alert("No hay equipos para generar reporte.");
+            
+            const estadoFiltro = document.getElementById('filtro-estado').value || "Todos"; 
+            const desdeFiltro = document.getElementById('filtro-desde').value ? formatearFecha(document.getElementById('filtro-desde').value) : "Inicio"; 
+            const hastaFiltro = document.getElementById('filtro-hasta').value ? formatearFecha(document.getElementById('filtro-hasta').value) : "Hoy";
+            
+            let totalMontoCotizado = 0;
+            let totalMontoFacturado = 0; 
+            let equiposReparados = 0;
+            
+            let filas = arrayFiltradoActual.map(eq => {
+                let montoItem = parseMonto(eq.totalCotizacion);
+                totalMontoCotizado += montoItem; 
+
+                if (eq.estado.includes('Reparado')) {
+                    equiposReparados++;
+                    totalMontoFacturado += montoItem; 
+                }
+
+                return `<tr>
+                    <td><strong>${eq.req}</strong><br><span style="font-size:0.9em; color:#64748b;">Cot: ${eq.cotizacion}</span></td>
+                    <td>${eq.cliente}</td>
+                    <td>${eq.equipo}<br><span style="font-size:0.9em; color:#64748b;">SN: ${eq.serie}</span></td>
+                    <td>${formatearFecha(eq.fechaIngreso)}</td>
+                    <td><strong>${eq.estado}</strong><br><span style="font-size:0.9em; color:#15803d;">Monto: $${montoItem.toLocaleString('es-CL')}</span></td>
+                </tr>`;
+            }).join('');
+            
+            let imgEstados = chartEstadosInstance ? chartEstadosInstance.toBase64Image() : '';
+            let imgTecnicos = chartTecnicosInstance ? chartTecnicosInstance.toBase64Image() : '';
+            
+            let seccionGraficosHTML = "";
+            if(imgEstados || imgTecnicos) {
+                seccionGraficosHTML = `
+                <div class="print-section" style="page-break-inside: avoid; display: flex; justify-content: space-around; align-items: center; padding: 10px; border:none; margin-bottom: 5px;">
+                    ${imgEstados ? `<div style="width: 45%; text-align: center;"><h4 style="font-size:12px; margin: 0 0 10px 0; color: #1e293b;">Distribución por Estado</h4><img src="${imgEstados}" style="max-width: 100%; height: 180px; object-fit: contain;"></div>` : ''}
+                    ${imgTecnicos ? `<div style="width: 45%; text-align: center;"><h4 style="font-size:12px; margin: 0 0 10px 0; color: #1e293b;">Carga por Técnico</h4><img src="${imgTecnicos}" style="max-width: 100%; height: 180px; object-fit: contain;"></div>` : ''}
+                </div>`;
+            }
+
+            const urlLogoTaller = "Logo.jpg"; 
+
+            const printHTML = `
+                <div class="print-header-container">
+                    <div>
+                        <img src="${urlLogoTaller}" alt="Logo Empresa" class="print-logo" onerror="this.style.display='none'">
+                    </div>
+                    <div class="print-header-text">
+                        <h1>Reporte Financiero y Operativo Taller</h1>
+                        <p><strong>TALLER MAQUIPAN</strong></p>
+                        <p style="margin-top:8px;">Emitido: <strong>${new Date().toLocaleDateString('es-CL')} a las ${new Date().toLocaleTimeString('es-CL')}</strong></p>
+                    </div>
+                </div>
+
+                <div class="print-summary-box">
+                    <div class="print-summary-item">
+                        <div class="print-summary-label">Total Equipos</div>
+                        <div class="print-summary-value">${arrayFiltradoActual.length}</div>
+                    </div>
+                    <div class="print-summary-item">
+                        <div class="print-summary-label">Equipos Reparados</div>
+                        <div class="print-summary-value" style="color: #15803d;">${equiposReparados}</div>
+                    </div>
+                    <div class="print-summary-item">
+                        <div class="print-summary-label">Proyectado (Cotizado)</div>
+                        <div class="print-summary-value" style="color: #f59e0b;">$${totalMontoCotizado.toLocaleString('es-CL')}</div>
+                    </div>
+                    <div class="print-summary-item">
+                        <div class="print-summary-label">Real (Facturable)</div>
+                        <div class="print-summary-value" style="color: #3b82f6;">$${totalMontoFacturado.toLocaleString('es-CL')}</div>
+                    </div>
+                </div>
+
+                ${seccionGraficosHTML}
+
+                <div class="print-section" style="background-color: #f8fafc; padding: 10px 15px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                    <p style="margin:0; font-size:12px;"><strong>Filtros Aplicados:</strong> Estado: ${estadoFiltro} | Periodo: ${desdeFiltro} al ${hastaFiltro}</p>
+                </div>
+
+                <table class="print-table">
+                    <thead><tr><th>Documentos</th><th>Cliente</th><th>Equipo / Serie</th><th>F. Ingreso</th><th>Estado y Monto</th></tr></thead>
+                    <tbody>${filas}</tbody>
+                </table>
+            `;
+            document.getElementById('printArea').innerHTML = printHTML; 
+            setTimeout(() => { window.print(); }, 500); 
+        }
+
+        window.onclick = function(event) { if (event.target == modalDetalle) window.cerrarModal(); }
+    </script>
+</body>
+</html>
