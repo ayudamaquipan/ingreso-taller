@@ -1091,7 +1091,31 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
                         </div>
                     </div>`;
                 document.getElementById('printArea').innerHTML = printHTML;
+
+                // --- SOLUCIÓN PÁGINAS EN BLANCO ---
+                // Ocultamos el contenedor principal y los modales físicamente
+                const contenedorApp = document.querySelector('.container');
+                const modales = document.querySelectorAll('.modal');
+                
+                contenedorApp.style.display = 'none';
+                modales.forEach(m => {
+                    if (m.style.display === 'flex') m.dataset.abierto = 'true';
+                    m.style.display = 'none';
+                });
+
+                // Ejecutamos la impresión
                 window.print();
+
+                // Restauramos todo a la normalidad inmediatamente después
+                contenedorApp.style.display = 'flex';
+                modales.forEach(m => {
+                    if (m.dataset.abierto === 'true') {
+                        m.style.display = 'flex';
+                        delete m.dataset.abierto;
+                    }
+                });
+                // -----------------------------------
+
             }, 150);
         }
 
