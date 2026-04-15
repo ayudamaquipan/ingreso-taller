@@ -226,7 +226,7 @@
             
             <div class="filtros-box">
                 <div class="form-row" style="align-items: flex-end; flex-wrap: wrap;">
-                    <div class="form-group" style="min-width: 200px;"><label>Buscar:</label><input type="text" id="filtro-texto" placeholder="Cliente, Serie o Req..." onkeyup="aplicarFiltros()" autocomplete="nope"></div>
+                    <div class="form-group" style="min-width: 200px;"><label>Buscar:</label><input type="search" id="busqueda-taller-maquipan" placeholder="Cliente, Serie o Req..." onkeyup="aplicarFiltros()" autocomplete="new-password"></div>
                     
                     <div class="form-group" style="min-width: 140px;">
                         <label>Cargar Historial:</label>
@@ -599,7 +599,7 @@
 
         // Forzar limpieza total medio segundo después para ganarle al autocompletado de Chrome
         setTimeout(() => {
-            document.getElementById('filtro-texto').value = '';
+            document.getElementById('busqueda-taller-maquipan').value = '';
             document.getElementById('filtro-estado').value = '';
             // Si el navegador alcanzó a filtrar algo incorrecto, esto lo resetea:
             window.aplicarFiltros(); 
@@ -691,7 +691,7 @@
         window.cerrarModalIngreso = function() { modalIngreso.style.display = 'none'; }
 
         window.aplicarFiltros = function() {
-            const texto = document.getElementById('filtro-texto').value.toLowerCase(); const estado = document.getElementById('filtro-estado').value;
+            const texto = document.getElementById('busqueda-taller-maquipan').value.toLowerCase(); const estado = document.getElementById('filtro-estado').value;
             const tipoFecha = document.getElementById('filtro-tipo-fecha').value; 
             const desde = document.getElementById('filtro-desde').value; const hasta = document.getElementById('filtro-hasta').value;
 
