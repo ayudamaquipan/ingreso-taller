@@ -597,10 +597,14 @@
 });
         }
 
-        // Forzar limpieza total de filtros al cargar la página
-        document.getElementById('filtro-texto').value = '';
-        document.getElementById('filtro-estado').value = '';
-        
+        // Forzar limpieza total medio segundo después para ganarle al autocompletado de Chrome
+        setTimeout(() => {
+            document.getElementById('filtro-texto').value = '';
+            document.getElementById('filtro-estado').value = '';
+            // Si el navegador alcanzó a filtrar algo incorrecto, esto lo resetea:
+            window.aplicarFiltros(); 
+        }, 500); 
+
         iniciarEscuchaFirebase(300);
 
         async function procesarYComprimirFoto(file) {
