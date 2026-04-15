@@ -361,7 +361,10 @@
 
                     <div class="form-row">
                         <div class="detalle-item"><span>N° Req</span><input type="text" id="mod-req" class="input-base" readonly></div>
-                        <div class="detalle-item"><span>Cotización</span><input type="text" id="mod-cotizacion" class="input-base" readonly></div>
+                        <div class="detalle-item"><span>Cotización ✍️</span><input type="text" id="mod-cotizacion" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
+                        <div class="detalle-item"><span>Nota Venta (NV) ✍️</span><input type="text" id="mod-nv" placeholder="Ej: NV-1234" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
+                    </div>
+                    <div class="form-row">
                         <div class="detalle-item"><span>Neto (Sin IVA)</span><input type="text" id="mod-subtotal" class="input-base" style="color:var(--warning-color);" readonly></div>
                         <div class="detalle-item"><span>Total (Con IVA)</span><input type="text" id="mod-total" class="input-base" style="color:var(--success-color); font-weight:700;" readonly></div>
                     </div>
@@ -892,6 +895,7 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
             document.getElementById('modal-titulo').innerText = `Gestión: ${equipo.equipo}`;
             document.getElementById('mod-req').value = equipo.req; 
             document.getElementById('mod-cotizacion').value = equipo.cotizacion;
+            document.getElementById('mod-nv').value = equipo.nv || '';
             document.getElementById('mod-subtotal').value = equipo.subtotal !== '--' ? '$' + equipo.subtotal : '--';
             document.getElementById('mod-total').value = equipo.totalCotizacion !== '--' ? '$' + equipo.totalCotizacion : '--';
             document.getElementById('mod-cliente').value = equipo.cliente; 
@@ -982,14 +986,15 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
                 equipo.bitacora.push({ fecha: new Date().toLocaleString('es-CL'), nota: `🔄 Estado cambiado a: **${nuevoEstado}**` });
                 equipo.estado = nuevoEstado; 
             }
-            
+            // Guardar Cotización y NV de forma manual para cualquier usuario
+            equipo.cotizacion = document.getElementById('mod-cotizacion').value;
+            equipo.nv = document.getElementById('mod-nv').value || '--';
             // GUARDADO DE DATOS ADMIN SI ESTÁN HABILITADOS
             if (isAdmin) {
                 equipo.cliente = document.getElementById('mod-cliente').value;
                 equipo.equipo = document.getElementById('mod-equipo').value;
                 equipo.serie = document.getElementById('mod-serie').value;
                 equipo.req = document.getElementById('mod-req').value;
-                equipo.cotizacion = document.getElementById('mod-cotizacion').value;
                 // Nota: totalCotizacion y subtotal se extraen del PDF, mejor no tocarlos manualmente para evitar romper formato.
             }
 
@@ -1000,7 +1005,7 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
             try {
                 const docRef = doc(db, "equipos", equipoActivoId);
                 await updateDoc(docRef, { 
-                    cliente: equipo.cliente, equipo: equipo.equipo, serie: equipo.serie, req: equipo.req, cotizacion: equipo.cotizacion,
+                    cliente: equipo.cliente, equipo: equipo.equipo, serie: equipo.serie, req: equipo.req, cotizacion: equipo.cotizacion, nv: equipo.nv,
                     estado: equipo.estado, tecnico: equipo.tecnico, fallaEncontrada: equipo.fallaEncontrada, reparacionRealizada: equipo.reparacionRealizada, repuestos: equipo.repuestos, bitacora: equipo.bitacora 
                 });
                 window.cerrarModal(true); 
