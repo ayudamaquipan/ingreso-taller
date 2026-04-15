@@ -567,13 +567,34 @@
             document.getElementById('loading-overlay').style.display = 'flex';
 
             unsubscribeFirebase = onSnapshot(q, (snapshot) => {
-                equipos = [];
-                snapshot.forEach((doc) => { equipos.push({ id: doc.id, ...doc.data() }); });
-                paginaActual = 1; 
-                window.aplicarFiltros(); 
-                document.getElementById('loading-overlay').style.display = 'none';
-                document.getElementById('loading-msg').innerText = "⏳ Guardando datos..."; 
-            });
+    equipos = [];
+    snapshot.forEach((doc) => { equipos.push({ id: doc.id, ...doc.data() }); });
+    paginaActual = 1; 
+    window.aplicarFiltros(); 
+    document.getElementById('loading-overlay').style.display = 'none';
+    document.getElementById('loading-msg').innerText = "⏳ Guardando datos..."; 
+    
+    // NUEVO: Lógica para procesar el escaneo del código QR
+    const urlParams = new URLSearchParams(window.location.search);
+    const folioEscaneado = urlParams.get('folio');
+    
+    // Si viene un folio en la URL y aún no lo hemos abierto
+    if (folioEscaneado && !window.modalAbiertoPorUrl) {
+        const equipoEncontrado = equipos.find(e => e.folio === folioEscaneado);
+        if (equipoEncontrado) {
+            window.abrirModal(equipoEncontrado.id);
+            window.modalAbiertoPorUrl = true; // Evitar que se reabra solo si Firebase detecta un cambio
+            
+            // Limpiar la URL visualmente para que al recargar la página no vuelva a abrirlo
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (equipos.length > 0) {
+            // Si cargaron los equipos y no está, avisamos
+            alert("El equipo escaneado (" + folioEscaneado + ") no se encuentra en la vista actual.");
+            window.history.replaceState({}, document.title, window.location.pathname);
+            window.modalAbiertoPorUrl = true;
+        }
+    }
+});
         }
 
         iniciarEscuchaFirebase(300);
@@ -841,7 +862,9 @@
             document.getElementById('mod-folio').innerText = folioActual;
             const qrBox = document.getElementById('qrcode-box');
             qrBox.innerHTML = '';
-            new QRCode(qrBox, { text: folioActual, width: 54, height: 54, colorDark : "#1e293b", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L });
+            // Generar URL completa hacia este sistema con el parámetro folio
+const urlQR = window.location.origin + window.location.pathname + "?folio=" + folioActual;
+new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L });
 
             // LOGICA ADMIN: Botón Eliminar y Inputs Base
             const btnEliminar = document.getElementById('btn-eliminar-admin');
@@ -1006,7 +1029,8 @@
             if (!eq || !eq.folio) return alert("Este equipo no tiene un folio generado.");
 
             const qrDiv = document.createElement('div');
-            new QRCode(qrDiv, { text: eq.folio, width: 150, height: 150, colorDark: "#000000", colorLight: "#ffffff", correctLevel : QRCode.CorrectLevel.M });
+            const urlQR = window.location.origin + window.location.pathname + "?folio=" + eq.folio;
+new QRCode(qrDiv, { text: urlQR, width: 150, height: 150, colorDark: "#000000", colorLight: "#ffffff", correctLevel : QRCode.CorrectLevel.M });
 
             setTimeout(() => {
                 const canvas = qrDiv.querySelector('canvas');
@@ -1072,7 +1096,7 @@
             const fallaEncontradaTxt = eq.fallaEncontrada ? eq.fallaEncontrada.replace(/\n/g, '<br>') : '<span style="color:#94a3b8; font-style:italic;">No se registró diagnóstico técnico adicional.</span>';
             const reparacionTxt = eq.reparacionRealizada ? eq.reparacionRealizada.replace(/\n/g, '<br>') : '<span style="color:#94a3b8; font-style:italic;">No se registraron trabajos realizados en sistema.</span>';
 
-            const urlLogoTaller = "https://github.com/ayudamaquipan/ingreso-taller/blob/main/Logo.jpg"; 
+            const urlLogoTaller = "https://placehold.co/400x120/f1f5f9/1e293b?text=LOGO+MAQUIPAN"; 
 
             const printHTML = `
                 <div class="print-header-container">
@@ -1184,7 +1208,7 @@
                 </div>`;
             }
 
-            const urlLogoTaller = "https://github.com/ayudamaquipan/ingreso-taller/blob/main/Logo.jpg"; 
+            const urlLogoTaller = "https://placehold.co/400x120/f1f5f9/1e293b?text=LOGO+MAQUIPAN"; 
 
             const printHTML = `
                 <div class="print-header-container">
