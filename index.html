@@ -597,6 +597,10 @@
 });
         }
 
+        // Forzar limpieza total de filtros al cargar la página
+        document.getElementById('filtro-texto').value = '';
+        document.getElementById('filtro-estado').value = '';
+        
         iniciarEscuchaFirebase(300);
 
         async function procesarYComprimirFoto(file) {
