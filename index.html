@@ -1064,22 +1064,30 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
 
             const qrDiv = document.createElement('div');
             const urlQR = window.location.origin + window.location.pathname + "?folio=" + eq.folio;
-new QRCode(qrDiv, { text: urlQR, width: 150, height: 150, colorDark: "#000000", colorLight: "#ffffff", correctLevel : QRCode.CorrectLevel.M });
+            
+            // 1. Generamos el QR en alta resolución (300x300)
+            new QRCode(qrDiv, { text: urlQR, width: 600, height: 600, colorDark: "#000000", colorLight: "#ffffff", correctLevel : QRCode.CorrectLevel.M });
 
             setTimeout(() => {
                 const canvas = qrDiv.querySelector('canvas');
                 const qrImgSrc = canvas ? canvas.toDataURL("image/png") : qrDiv.querySelector('img').src;
 
+                // 2. Redujimos el padding a 5px para ganar espacio a los lados
                 const printHTML = `
-                    <div style="text-align:center; padding: 15px; font-family: 'Inter', sans-serif; width: 6cm; border: 2px solid #000; margin: 0 auto; border-radius: 8px;">
+                    <div style="text-align:center; padding: 5px 10px; font-family: 'Inter', sans-serif; width: 6cm; box-sizing: border-box; border: 2px solid #000; margin: 0 auto; border-radius: 8px;">
                         <h2 style="margin:0 0 5px 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">TALLER</h2>
-                        <p style="margin:0 0 10px 0; font-size: 11px; font-weight: 600; text-transform: uppercase;">Servicio Técnico</p>
-                        <img src="${qrImgSrc}" style="width: 140px; height: 140px; margin: 0 auto; display: block;">
-                        <h1 style="margin:10px 0 5px 0; font-size: 26px; letter-spacing: 1px;">${eq.folio}</h1>
+                        <p style="margin:0 0 5px 0; font-size: 11px; font-weight: 600; text-transform: uppercase;">Servicio Técnico</p>
+                        
+                        <img src="${qrImgSrc}" style="width: 100%; height: auto; margin: 0 auto; display: block;">
+                        
+                        <h1 style="margin:5px 0 5px 0; font-size: 24px; letter-spacing: 1px;">${eq.folio}</h1>
                         <div style="border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; text-align: left;">
-                            <p style="margin:0; font-size: 11px; font-weight: bold;">Equipo: <span style="font-weight: normal;">${eq.equipo.substring(0, 30)}</span></p>
-                            <p style="margin:2px 0 0 0; font-size: 11px; font-weight: bold;">Serie: <span style="font-weight: normal;">${eq.serie}</span></p>
-                            <p style="margin:2px 0 0 0; font-size: 11px; font-weight: bold;">Ingreso: <span style="font-weight: normal;">${formatearFecha(eq.fechaIngreso)}</span></p>
+                            <p style="margin:0; font-size: 20px; font-weight: bold;">Cliente: <span style="font-weight: normal;">${eq.cliente.substring(0, 25)}</span></p>
+                            <p style="margin:2px 0 0 0; font-size: 20px; font-weight: bold;">Equipo: <span style="font-weight: normal;">${eq.equipo.substring(0, 25)}</span></p>
+                            <p style="margin:2px 0 0 0; font-size: 20px; font-weight: bold;">Serie: <span style="font-weight: normal;">${eq.serie}</span></p>
+                            <p style="margin:2px 0 0 0; font-size: 20px; font-weight: bold;">Ingreso: <span style="font-weight: normal;">${formatearFecha(eq.fechaIngreso)}</span></p>
+                            <p style="margin:2px 0 0 0; font-size: 20px; font-weight: bold;">REQ: <span style="font-weight: normal;">${eq.req !== '--' ? eq.req : 'N/A'}</span> | NV: <span style="font-weight: normal;">${eq.nv && eq.nv !== '--' ? eq.nv : 'N/A'}</span></p>
+                            <p style="margin:2px 0 0 0; font-size: 20px; font-weight: bold;">Técnico: <span style="font-weight: normal;">${eq.tecnico || 'Sin asignar'}</span></p>
                         </div>
                     </div>`;
                 document.getElementById('printArea').innerHTML = printHTML;
@@ -1130,7 +1138,7 @@ new QRCode(qrDiv, { text: urlQR, width: 150, height: 150, colorDark: "#000000", 
             const fallaEncontradaTxt = eq.fallaEncontrada ? eq.fallaEncontrada.replace(/\n/g, '<br>') : '<span style="color:#94a3b8; font-style:italic;">No se registró diagnóstico técnico adicional.</span>';
             const reparacionTxt = eq.reparacionRealizada ? eq.reparacionRealizada.replace(/\n/g, '<br>') : '<span style="color:#94a3b8; font-style:italic;">No se registraron trabajos realizados en sistema.</span>';
 
-            const urlLogoTaller = "https://placehold.co/400x120/f1f5f9/1e293b?text=LOGO+MAQUIPAN"; 
+            const urlLogoTaller = "Logo.jpg"; 
 
             const printHTML = `
                 <div class="print-header-container">
