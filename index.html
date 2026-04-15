@@ -181,9 +181,38 @@
             .modal-body-right { overflow-y: visible; }
             .charts-grid { grid-template-columns: 1fr; }
         }
+/* PANTALLA DE LOGIN OBLIGATORIO */
+#pantalla-login-fullscreen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0f172a 100%);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 3000; flex-direction: column;
+}
+.login-box {
+    background: var(--card-bg); padding: 40px; border-radius: var(--radius-lg);
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); width: 100%; max-width: 400px;
+}
+.login-box h2 { text-align: center; color: var(--primary-color); margin-top: 0; }
+.login-box p { text-align: center; color: var(--text-muted); font-size: 0.9em; margin-bottom: 25px; }
     </style>
 </head>
 <body>
+
+<div id="pantalla-login-fullscreen">
+    <div class="login-box">
+        <h2>🛠️ Portal Taller</h2>
+        <p>Ingresa tus credenciales para acceder</p>
+        <div class="form-group">
+            <label>Correo Electrónico:</label>
+            <input type="email" id="login-email-main" placeholder="usuario@maquipan.cl">
+        </div>
+        <div class="form-group">
+            <label>Contraseña:</label>
+            <input type="password" id="login-pass-main" placeholder="••••••••">
+        </div>
+        <button onclick="ejecutarLoginPrincipal()" class="btn-success" style="width:100%; margin-top: 15px; padding: 14px; font-size: 1.1em;">Iniciar Sesión</button>
+    </div>
+</div>
 
     <div id="loading-overlay">
         <div id="loading-msg">⏳ Procesando información...</div>
@@ -191,7 +220,7 @@
     </div>
     <div id="printArea" class="print-area"></div>
 
-    <div class="container">
+    <div class="container" style="display: none;">
         <div class="header">
             <div style="display:flex; align-items:center; gap:15px; flex-wrap: wrap;">
                 <h1>🛠️ Dashboard Taller Maquipan</h1>
@@ -444,30 +473,10 @@
         </div>
     </div>
 
-    <div id="modalLogin" class="modal">
-        <div class="modal-content modal-small">
-            <div class="modal-header" style="background-color: #334155;">
-                <h2>🔒 Ingreso Administrador</h2>
-                <span class="close" onclick="cerrarLogin()">&times;</span>
-            </div>
-            <div class="modal-body-scroll" style="padding: 30px;">
-                <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 20px;">Ingresa tus credenciales autorizadas en Firebase para editar datos o eliminar fichas.</p>
-                <div class="form-group">
-                    <label>Correo Electrónico:</label>
-                    <input type="email" id="login-email" placeholder="admin@maquipan.cl">
-                </div>
-                <div class="form-group">
-                    <label>Contraseña:</label>
-                    <input type="password" id="login-pass" placeholder="••••••••">
-                </div>
-                <button onclick="ejecutarLogin()" class="btn-success" style="width:100%; margin-top: 15px;">Iniciar Sesión</button>
-            </div>
-        </div>
-    </div>
-
+           
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         // NUEVO: Importaciones de Autenticación
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
@@ -485,46 +494,139 @@
         const auth = getAuth(app);
         const equiposRef = collection(db, "equipos");
 
-        // GESTIÓN DE ESTADO ADMIN
-        let isAdmin = false;
+        // GESTIÓN DE ROLES Y SESIÓN
+let rolUsuario = null; // Puede ser 'admin', 'ejecutivo', 'tecnico'
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                isAdmin = true;
-                document.getElementById('btn-auth').innerHTML = "🔓 Cerrar Sesión Admin";
-                document.getElementById('btn-auth').style.backgroundColor = "rgba(16, 185, 129, 0.2)"; // Verde suave
-            } else {
-                isAdmin = false;
-                document.getElementById('btn-auth').innerHTML = "🔒 Ingreso Admin";
-                document.getElementById('btn-auth').style.backgroundColor = "rgba(255,255,255,0.1)"; 
-            }
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+        
+        if (userDoc.exists()) {
+            rolUsuario = userDoc.data().rol;
+            aplicarPermisosSegunRol(rolUsuario);
+            
+            document.getElementById('pantalla-login-fullscreen').style.display = 'none';
+            document.querySelector('.container').style.display = 'flex';
+            
+            // CORRECCIÓN: Iniciar base de datos y ocultar cargando inmediatamente
+            iniciarEscuchaFirebase(300);
+            document.getElementById('loading-overlay').style.display = 'none';
+            
+            document.getElementById('btn-auth').innerHTML = `🔓 Cerrar Sesión (${rolUsuario.toUpperCase()})`;
+        } else {
+            alert("Tu cuenta no tiene un rol asignado. Contacta al administrador.");
+            signOut(auth);
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+    } else {
+        rolUsuario = null;
+        document.getElementById('pantalla-login-fullscreen').style.display = 'flex';
+        document.querySelector('.container').style.display = 'none';
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
+});
+
+// NUEVA FUNCIÓN PARA GESTIONAR LA INTERFAZ SEGÚN EL ROL
+function aplicarPermisosSegunRol(rol) {
+    const btnEliminar = document.getElementById('btn-eliminar-admin');
+    const panelDinero = document.getElementById('count-cotizado-mes').parentElement.parentElement;
+    const btnReporteJefatura = document.querySelector('button[onclick="imprimirListadoReporte()"]');
+    
+    // Referencias a elementos del modal para ocultar/mostrar
+    const colIzquierda = document.querySelector('.modal-body-left');
+    const colDerecha = document.querySelector('.modal-body-right');
+    const inputsBase = document.querySelectorAll('.input-base');
+
+    // Reset por defecto (mostrar todo)
+    btnEliminar.style.display = 'none';
+    panelDinero.style.display = 'flex';
+    if(btnReporteJefatura) btnReporteJefatura.style.display = 'inline-flex';
+    colIzquierda.style.display = 'block';
+    
+    // 1. LÓGICA PARA TÉCNICO (MÁXIMA RESTRICCIÓN)
+    if (rol === 'tecnico') {
+        // Ocultar Dashboard de dinero y reportes
+        panelDinero.style.display = 'none';
+        if(btnReporteJefatura) btnReporteJefatura.style.display = 'none';
+
+        // En el Modal: Ocultar todo en la izquierda EXCEPTO la tabla de repuestos
+        // Seleccionamos todos los hijos directos de la columna izquierda
+        Array.from(colIzquierda.children).forEach(hijo => {
+            // Solo dejamos ver el título de repuestos y la tabla
+            const esSeccionRepuestos = hijo.innerText?.includes("Repuestos Asignados") || hijo.id === "mod-tabla-repuestos";
+            hijo.style.display = esSeccionRepuestos ? 'block' : 'none';
         });
 
-        window.toggleLogin = () => {
-            if (isAdmin) { signOut(auth); alert("Sesión de administrador cerrada."); } 
-            else { document.getElementById('modalLogin').style.display = 'flex'; }
-        }
-        window.cerrarLogin = () => { document.getElementById('modalLogin').style.display = 'none'; }
+        // En la derecha: Ocultar QR, Técnico a cargo, Estado y Bitácora
+        const elementosDerecha = colDerecha.children;
+        // El folio/QR es el primer div
+        elementosDerecha[0].style.display = 'none'; 
+        // Técnico a cargo (segundo div/form-group)
+        document.getElementById('mod-tecnico').parentElement.style.display = 'none';
+        // Selector de Estado
+        document.getElementById('mod-estado').parentElement.style.display = 'none';
+        // Bitácora y Notas
+        document.getElementById('contenedor-bitacora').style.display = 'none';
+        document.getElementById('nueva-nota').parentElement.style.display = 'none';
+        document.querySelector('.modal-body-right h3').style.display = 'none'; // Título Bitácora
+
+        // Ocultar botones de PDF, QR y Eliminar
+        document.querySelector('button[onclick="generarActaPDF()"]').style.display = 'none';
+        document.querySelector('button[onclick="imprimirEtiquetaQR()"]').style.display = 'none';
         
-        window.ejecutarLogin = async () => {
-            const e = document.getElementById('login-email').value;
-            const p = document.getElementById('login-pass').value;
-            document.getElementById('loading-overlay').style.display = 'flex';
-            try {
-                await signInWithEmailAndPassword(auth, e, p);
-                cerrarLogin();
-                document.getElementById('login-email').value = '';
-                document.getElementById('login-pass').value = '';
-                alert("¡Bienvenido! Ahora tienes permisos de administrador.");
-            } catch(error) {
-                alert("Credenciales incorrectas o usuario no creado en Firebase Authentication.");
-            } finally {
-                document.getElementById('loading-overlay').style.display = 'none';
-            }
+        // Bloquear inputs base por si acaso
+        inputsBase.forEach(el => { el.readOnly = true; el.classList.remove('admin-edit'); });
+    } 
+    
+    // 2. LÓGICA PARA ADMIN / EJECUTIVO
+    else {
+        // Mostrar todo lo que el técnico no ve
+        Array.from(colIzquierda.children).forEach(hijo => hijo.style.display = 'block');
+        Array.from(colDerecha.children).forEach(hijo => hijo.style.display = 'block');
+        document.getElementById('mod-tecnico').parentElement.style.display = 'block';
+        document.getElementById('mod-estado').parentElement.style.display = 'block';
+        document.getElementById('contenedor-bitacora').style.display = 'block';
+        document.getElementById('nueva-nota').parentElement.style.display = 'block';
+        document.querySelector('button[onclick="generarActaPDF()"]').style.display = 'block';
+        document.querySelector('button[onclick="imprimirEtiquetaQR()"]').style.display = 'block';
+
+        if (rol === 'admin') {
+            btnEliminar.style.display = 'block';
+            inputsBase.forEach(el => { el.readOnly = false; el.classList.add('admin-edit'); });
+        } else if (rol === 'ejecutivo') {
+            inputsBase.forEach(el => { el.readOnly = false; el.classList.add('admin-edit'); });
         }
+    }
+}
+
+// NUEVA FUNCIÓN DE LOGIN
+window.ejecutarLoginPrincipal = async () => {
+    const e = document.getElementById('login-email-main').value;
+    const p = document.getElementById('login-pass-main').value;
+    if(!e || !p) return alert("Ingresa correo y contraseña.");
+    
+    // Resetear mensaje para que sea coherente con la acción
+    document.getElementById('loading-msg').innerText = "⏳ Iniciando sesión...";
+    document.getElementById('loading-overlay').style.display = 'flex';
+    
+    try {
+        await signInWithEmailAndPassword(auth, e, p);
+        // No ocultamos aquí, dejamos que onAuthStateChanged lo haga al validar el rol
+    } catch(error) {
+        alert("Credenciales incorrectas o usuario no válido.");
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
+}
+
+// REEMPLAZAR LA FUNCIÓN DEL BOTÓN SUPERIOR DE SESIÓN
+window.toggleLogin = () => {
+    if (confirm("¿Deseas cerrar tu sesión actual?")) {
+        signOut(auth);
+    }
+}
 
         window.eliminarEquipoActual = async () => {
-            if (!isAdmin) return;
+            if (rolUsuario !== 'admin') return alert("No tienes permisos para eliminar.");
             const codigo = document.getElementById('mod-folio').innerText;
             if (confirm(`⚠️ ALERTA DE ADMINISTRADOR ⚠️\n\n¿Estás totalmente seguro de que deseas ELIMINAR la ficha ${codigo}?\nEsta acción es irreversible y borrará el historial, fotos y repuestos.`)) {
                 document.getElementById('loading-overlay').style.display = 'flex';
@@ -882,17 +984,8 @@
 const urlQR = window.location.origin + window.location.pathname + "?folio=" + folioActual;
 new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L });
 
-            // LOGICA ADMIN: Botón Eliminar y Inputs Base
-            const btnEliminar = document.getElementById('btn-eliminar-admin');
-            const inputsBase = document.querySelectorAll('.input-base');
-            
-            if (isAdmin) {
-                btnEliminar.style.display = 'block';
-                inputsBase.forEach(el => { el.readOnly = false; el.classList.add('admin-edit'); });
-            } else {
-                btnEliminar.style.display = 'none';
-                inputsBase.forEach(el => { el.readOnly = true; el.classList.remove('admin-edit'); });
-            }
+            // APLICAR PERMISOS DE INTERFAZ SEGÚN EL ROL DEL USUARIO
+            aplicarPermisosSegunRol(rolUsuario);
 
             document.getElementById('modal-titulo').innerText = `Gestión: ${equipo.equipo}`;
             document.getElementById('mod-req').value = equipo.req; 
@@ -925,10 +1018,25 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
                 equipo.repuestos.forEach((rep, index) => {
                     const isChecked = rep.disponible ? 'checked' : ''; const colorFondo = rep.disponible ? 'background-color: #f0fdf4;' : '';
                     const estiloDesc = rep.disponible ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: var(--text-main);';
-                    tbodyRepuestos.innerHTML += `<tr style="${colorFondo}"><td style="text-align:center;"><input type="checkbox" ${isChecked} onchange="toggleRepuesto('${equipo.id}', ${index})" style="width: 18px; height: 18px; cursor: pointer;"></td><td style="font-family:monospace; font-weight:600;">${rep.codigo}</td><td style="text-align: center;">${rep.cantidad}</td><td style="${estiloDesc}">${rep.descripcion}</td><td style="font-weight:500;">$${rep.total}</td></tr>`;
+                    tbodyRepuestos.innerHTML += `
+    <tr style="${colorFondo}">
+        <td style="text-align:center;">
+            <input type="checkbox" ${isChecked} onchange="toggleRepuesto('${equipo.id}', ${index})" style="width: 18px; height: 18px; cursor: pointer;">
+        </td>
+        <td style="font-family:monospace; font-weight:600;">${rep.codigo}</td>
+        <td style="text-align: center;">${rep.cantidad}</td>
+        <td style="${estiloDesc}">${rep.descripcion}</td>
+        <td style="font-weight:500;">
+            ${rolUsuario === 'tecnico' ? '---' : '$' + rep.total}
+        </td>
+    </tr>`;
                 });
             } else { document.getElementById('contador-repuestos').innerText = `0/0 Listos`; tbodyRepuestos.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding: 20px;">No se ha cargado presupuesto</td></tr>'; }
+            
             renderizarBitacora();
+            
+            // NUEVO: Aquí indicamos al sistema que aplique las restricciones de visión
+            aplicarPermisosSegunRol(rolUsuario);
         }
 
         window.toggleRepuesto = function(equipoId, index) { const equipo = equipos.find(e => e.id === equipoId); equipo.repuestos[index].disponible = !equipo.repuestos[index].disponible; cargarDatosEnModal(equipo); }
@@ -992,7 +1100,7 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
             equipo.cotizacion = document.getElementById('mod-cotizacion').value;
             equipo.nv = document.getElementById('mod-nv').value || '--';
             // GUARDADO DE DATOS ADMIN SI ESTÁN HABILITADOS
-            if (isAdmin) {
+            if (rolUsuario === 'admin' || rolUsuario === 'ejecutivo') {
                 equipo.cliente = document.getElementById('mod-cliente').value;
                 equipo.equipo = document.getElementById('mod-equipo').value;
                 equipo.serie = document.getElementById('mod-serie').value;
