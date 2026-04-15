@@ -1263,7 +1263,17 @@ new QRCode(qrDiv, { text: urlQR, width: 150, height: 150, colorDark: "#000000", 
             document.getElementById('printArea').innerHTML = printHTML; 
             setTimeout(() => { window.print(); }, 500); 
         }
-
+        
+// Vaciar la caja apenas el navegador termine de cargar y de intentar autocompletar
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                const cajaBusqueda = document.getElementById('busqueda-taller-maquipan');
+                if(cajaBusqueda) {
+                    cajaBusqueda.value = '';
+                }
+            }, 800); // 800 milisegundos de retraso para ganarle a Chrome
+        });
+        
         window.onclick = function(event) { if (event.target == modalDetalle) window.cerrarModal(false); }
     </script>
 </body>
