@@ -402,9 +402,19 @@
 
                     <h3 class="form-section-title">Información del Cliente y Equipo</h3>
                     <div class="form-row">
-                        <div class="form-group"><label>Cliente / Sucursal:</label><input type="text" id="cliente" required placeholder="Ej: Tottus Centro"></div>
-                        <div class="form-group"><label>N° Req (Opcional):</label><input type="text" id="req-ingreso" placeholder="Ej: REQ-156991"></div>
-                    </div>
+    <div class="form-group" style="flex: 2;">
+        <label>Cliente / Sucursal:</label>
+        <input type="text" id="cliente" required placeholder="Ej: Tottus Centro">
+    </div>
+    <div class="form-group" style="flex: 1;">
+        <label>N° Req (Opc.):</label>
+        <input type="text" id="req-ingreso" placeholder="Ej: REQ-156991">
+    </div>
+    <div class="form-group" style="flex: 1;">
+        <label>N° Guía (Opc.):</label>
+        <input type="text" id="guia-ingreso" placeholder="Ej: 12345">
+    </div>
+</div>
                     <div class="form-group"><label>Equipo y Modelo:</label><input type="text" id="equipo" required placeholder="Ej: Horno Zucchelli 60x40"></div>
                     <div class="form-row">
                         <div class="form-group"><label>N° Serie:</label><input type="text" id="serie" required placeholder="Ingresar Serie"></div>
@@ -465,8 +475,9 @@
                         <div id="pdf-loading" style="display:none; color: var(--secondary-color); font-weight: 600; margin-top: 10px;">⏳ Procesando PDF... </div>
                     </div>
 
-                    <div class="form-row">
+<div class="form-row">
     <div class="detalle-item"><span>N° Req</span><input type="text" id="mod-req" class="input-base" readonly></div>
+    <div class="detalle-item"><span>N° Guía</span><input type="text" id="mod-guia" class="input-base" readonly></div>
     <div class="detalle-item"><span>Cotización ✍️</span><input type="text" id="mod-cotizacion" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
     <div class="detalle-item"><span>Nota Venta (NV) ✍️</span><input type="text" id="mod-nv" placeholder="Ej: NV-1234" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
     <div class="detalle-item"><span>Fecha Recepción NV ✍️</span><input type="date" id="mod-fecha-nv" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
@@ -857,11 +868,14 @@ window.toggleLogin = () => {
                 if(fotoInput.files.length > 0) { fotoDatos = await procesarYComprimirFoto(fotoInput.files[0]); }
 
                 const valReq = document.getElementById('req-ingreso').value.trim();
+const valGuia = document.getElementById('guia-ingreso').value.trim();
                 const folioUnico = 'FX-' + Math.floor(100000 + Math.random() * 900000);
 
                 const nuevoEquipo = {
-                    folio: folioUnico, 
-                    req: valReq !== '' ? valReq : '--', cotizacion: '--', subtotal: '--', totalCotizacion: '--', nv: '--', fechaNV: '',
+    folio: folioUnico, 
+    req: valReq !== '' ? valReq : '--', 
+    guiaDespacho: valGuia !== '' ? valGuia : '--', // <--- NUEVO CAMPO
+    cotizacion: '--', subtotal: '--', totalCotizacion: '--', nv: '--', fechaNV: '',
                     fechaIngreso: document.getElementById('fecha-ingreso').value, fechaPresupuesto: document.getElementById('fecha-presupuesto').value,
                     cliente: document.getElementById('cliente').value, equipo: document.getElementById('equipo').value, serie: document.getElementById('serie').value.trim(),
                     prioridad: document.getElementById('prioridad').value, falla: document.getElementById('falla').value,
@@ -1016,7 +1030,7 @@ window.eliminarFoto = async function(arrayName, index) {
             const mesActual = new Date().getMonth();
             const anioActual = new Date().getFullYear();
 
-            const contadorEstados = { 'Ingresado':0, 'En Revisión':0, 'Esperando Aprobación':0, 'Aprobado - Esperando Repuesto':0, 'En Reparación':0, 'Reparado / Listo':0 };
+            const contadorEstados = { 'Ingresado':0, 'En Revisión':0, 'Esperando Aprobación':0, 'Aprobado - Esperando Repuesto':0, 'En Reparación':0, 'Reparado / Listo':0, 'Entregado':0 };
             const contadorTecnicos = {};
 
             datos.forEach(eq => {
@@ -1026,7 +1040,7 @@ window.eliminarFoto = async function(arrayName, index) {
                 if (eq.fechaIngreso) {
                     const [y, m, d] = eq.fechaIngreso.split('-');
                     if (parseInt(m)-1 === mesActual && parseInt(y) === anioActual) {
-                        if (eq.estado.includes('Reparado')) reparadosMes++;
+		    if (eq.estado.includes('Reparado') || eq.estado === 'Entregado') reparadosMes++;
                         cotizadoMes += parseMonto(eq.totalCotizacion);
                     }
                 }
@@ -1053,7 +1067,7 @@ window.eliminarFoto = async function(arrayName, index) {
                     labels: Object.keys(contadorEstados),
                     datasets: [{
                         data: Object.values(contadorEstados),
-                        backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6', '#a855f7', '#14b8a6', '#10b981'],
+			backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6', '#a855f7', '#14b8a6', '#10b981', '#475569'],
                         borderWidth: 1
                     }]
                 },
@@ -1112,6 +1126,7 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
 
             document.getElementById('modal-titulo').innerText = `Gestión: ${equipo.equipo}`;
             document.getElementById('mod-req').value = equipo.req; 
+	    document.getElementById('mod-guia').value = equipo.guiaDespacho || '--'; // <--- NUEVO
             document.getElementById('mod-cotizacion').value = equipo.cotizacion;
             document.getElementById('mod-nv').value = equipo.nv || '';
 	    document.getElementById('mod-fecha-nv').value = equipo.fechaNV || '';
@@ -1252,12 +1267,12 @@ equipo.nv = document.getElementById('mod-nv').value || '--';
 equipo.fechaNV = document.getElementById('mod-fecha-nv').value || '';
             // GUARDADO DE DATOS ADMIN SI ESTÁN HABILITADOS
             if (rolUsuario === 'admin' || rolUsuario === 'ejecutivo') {
-                equipo.cliente = document.getElementById('mod-cliente').value;
-                equipo.equipo = document.getElementById('mod-equipo').value;
-                equipo.serie = document.getElementById('mod-serie').value;
-                equipo.req = document.getElementById('mod-req').value;
-                // Nota: totalCotizacion y subtotal se extraen del PDF, mejor no tocarlos manualmente para evitar romper formato.
-            }
+    equipo.cliente = document.getElementById('mod-cliente').value;
+    equipo.equipo = document.getElementById('mod-equipo').value;
+    equipo.serie = document.getElementById('mod-serie').value;
+    equipo.req = document.getElementById('mod-req').value;
+    equipo.guiaDespacho = document.getElementById('mod-guia').value; // <--- NUEVO
+}
 
             equipo.tecnico = document.getElementById('mod-tecnico').value;
             equipo.fallaEncontrada = document.getElementById('mod-falla-encontrada').value;
@@ -1265,10 +1280,22 @@ equipo.fechaNV = document.getElementById('mod-fecha-nv').value || '';
             
             try {
                 const docRef = doc(db, "equipos", equipoActivoId);
-await updateDoc(docRef, { 
-    cliente: equipo.cliente, equipo: equipo.equipo, serie: equipo.serie, req: equipo.req, cotizacion: equipo.cotizacion, nv: equipo.nv, fechaNV: equipo.fechaNV,
-    estado: equipo.estado, tecnico: equipo.tecnico, fallaEncontrada: equipo.fallaEncontrada, reparacionRealizada: equipo.reparacionRealizada, repuestos: equipo.repuestos, bitacora: equipo.bitacora 
-});
+                await updateDoc(docRef, { 
+                    cliente: equipo.cliente, 
+                    equipo: equipo.equipo, 
+                    serie: equipo.serie, 
+                    req: equipo.req, 
+                    guiaDespacho: equipo.guiaDespacho,
+                    cotizacion: equipo.cotizacion,
+                    nv: equipo.nv,
+                    fechaNV: equipo.fechaNV,
+                    tecnico: equipo.tecnico,
+                    fallaEncontrada: equipo.fallaEncontrada,
+                    reparacionRealizada: equipo.reparacionRealizada,
+                    estado: equipo.estado,       // <-- Aquí se guarda el estado "Entregado"
+                    bitacora: equipo.bitacora,   // <-- Guarda el historial de notas
+                    repuestos: equipo.repuestos  // <-- Guarda los checks de los repuestos
+                });
                 window.cerrarModal(true); 
             } catch (error) { alert("Error al actualizar la nube."); } finally { document.getElementById('loading-overlay').style.display = 'none'; }
         }
@@ -1507,7 +1534,7 @@ await updateDoc(docRef, {
                 let montoItem = parseMonto(eq.totalCotizacion);
                 totalMontoCotizado += montoItem; 
 
-                if (eq.estado.includes('Reparado')) {
+                if (eq.estado.includes('Reparado') || eq.estado === 'Entregado') {
                     equiposReparados++;
                     totalMontoFacturado += montoItem; 
                 }
