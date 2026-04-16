@@ -413,7 +413,7 @@
                     <h3 class="form-section-title">Plazos de Taller</h3>
                     <div class="form-row">
                         <div class="form-group"><label>Fecha Ingreso:</label><input type="date" id="fecha-ingreso" required></div>
-                        <div class="form-group"><label>Límite Ppto / Rep.:</label><input type="date" id="fecha-presupuesto" required></div>
+                        <div class="form-group"><label>Límite Ppto / Rep. (Opcional):</label><input type="date" id="fecha-presupuesto"></div>
                     </div>
 
                     <h3 class="form-section-title">Diagnóstico Preliminar</h3>
@@ -465,10 +465,11 @@
                     </div>
 
                     <div class="form-row">
-                        <div class="detalle-item"><span>N° Req</span><input type="text" id="mod-req" class="input-base" readonly></div>
-                        <div class="detalle-item"><span>Cotización ✍️</span><input type="text" id="mod-cotizacion" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
-                        <div class="detalle-item"><span>Nota Venta (NV) ✍️</span><input type="text" id="mod-nv" placeholder="Ej: NV-1234" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
-                    </div>
+    <div class="detalle-item"><span>N° Req</span><input type="text" id="mod-req" class="input-base" readonly></div>
+    <div class="detalle-item"><span>Cotización ✍️</span><input type="text" id="mod-cotizacion" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
+    <div class="detalle-item"><span>Nota Venta (NV) ✍️</span><input type="text" id="mod-nv" placeholder="Ej: NV-1234" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
+    <div class="detalle-item"><span>Fecha Recepción NV ✍️</span><input type="date" id="mod-fecha-nv" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; width: 100%; box-sizing: border-box; font-family: 'Inter', sans-serif;"></div>
+</div>
                     <div class="form-row">
                         <div class="detalle-item"><span>Neto (Sin IVA)</span><input type="text" id="mod-subtotal" class="input-base" style="color:var(--warning-color);" readonly></div>
                         <div class="detalle-item"><span>Total (Con IVA)</span><input type="text" id="mod-total" class="input-base" style="color:var(--success-color); font-weight:700;" readonly></div>
@@ -858,7 +859,7 @@ window.toggleLogin = () => {
 
                 const nuevoEquipo = {
                     folio: folioUnico, 
-                    req: valReq !== '' ? valReq : '--', cotizacion: '--', subtotal: '--', totalCotizacion: '--',
+                    req: valReq !== '' ? valReq : '--', cotizacion: '--', subtotal: '--', totalCotizacion: '--', nv: '--', fechaNV: '',
                     fechaIngreso: document.getElementById('fecha-ingreso').value, fechaPresupuesto: document.getElementById('fecha-presupuesto').value,
                     cliente: document.getElementById('cliente').value, equipo: document.getElementById('equipo').value, serie: document.getElementById('serie').value.trim(),
                     prioridad: document.getElementById('prioridad').value, falla: document.getElementById('falla').value,
@@ -1111,6 +1112,7 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
             document.getElementById('mod-req').value = equipo.req; 
             document.getElementById('mod-cotizacion').value = equipo.cotizacion;
             document.getElementById('mod-nv').value = equipo.nv || '';
+	    document.getElementById('mod-fecha-nv').value = equipo.fechaNV || '';
             document.getElementById('mod-subtotal').value = equipo.subtotal !== '--' ? '$' + equipo.subtotal : '--';
             document.getElementById('mod-total').value = equipo.totalCotizacion !== '--' ? '$' + equipo.totalCotizacion : '--';
             document.getElementById('mod-cliente').value = equipo.cliente; 
@@ -1244,7 +1246,8 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
             }
             // Guardar Cotización y NV de forma manual para cualquier usuario
             equipo.cotizacion = document.getElementById('mod-cotizacion').value;
-            equipo.nv = document.getElementById('mod-nv').value || '--';
+equipo.nv = document.getElementById('mod-nv').value || '--';
+equipo.fechaNV = document.getElementById('mod-fecha-nv').value || '';
             // GUARDADO DE DATOS ADMIN SI ESTÁN HABILITADOS
             if (rolUsuario === 'admin' || rolUsuario === 'ejecutivo') {
                 equipo.cliente = document.getElementById('mod-cliente').value;
@@ -1260,10 +1263,10 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
             
             try {
                 const docRef = doc(db, "equipos", equipoActivoId);
-                await updateDoc(docRef, { 
-                    cliente: equipo.cliente, equipo: equipo.equipo, serie: equipo.serie, req: equipo.req, cotizacion: equipo.cotizacion, nv: equipo.nv,
-                    estado: equipo.estado, tecnico: equipo.tecnico, fallaEncontrada: equipo.fallaEncontrada, reparacionRealizada: equipo.reparacionRealizada, repuestos: equipo.repuestos, bitacora: equipo.bitacora 
-                });
+await updateDoc(docRef, { 
+    cliente: equipo.cliente, equipo: equipo.equipo, serie: equipo.serie, req: equipo.req, cotizacion: equipo.cotizacion, nv: equipo.nv, fechaNV: equipo.fechaNV,
+    estado: equipo.estado, tecnico: equipo.tecnico, fallaEncontrada: equipo.fallaEncontrada, reparacionRealizada: equipo.reparacionRealizada, repuestos: equipo.repuestos, bitacora: equipo.bitacora 
+});
                 window.cerrarModal(true); 
             } catch (error) { alert("Error al actualizar la nube."); } finally { document.getElementById('loading-overlay').style.display = 'none'; }
         }
