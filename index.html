@@ -223,6 +223,53 @@
 }
 .login-box h2 { text-align: center; color: var(--primary-color); margin-top: 0; }
 .login-box p { text-align: center; color: var(--text-muted); font-size: 0.9em; margin-bottom: 25px; }
+/* VISOR DE FOTOS AMPLIADAS (LIGHTBOX) */
+#modalVisorFoto { 
+    z-index: 4000; /* Por encima del modal de detalles */
+    background-color: rgba(0, 0, 0, 0.85); 
+}
+#modalVisorFoto .modal-content { 
+    background: transparent; 
+    box-shadow: none; 
+    width: auto; 
+    max-width: 95vw; 
+    align-items: center; 
+    justify-content: center; 
+    overflow: visible;
+}
+#img-visor { 
+    max-width: 100%; 
+    max-height: 90vh; 
+    object-fit: contain; 
+    border-radius: 8px; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+}
+.close-visor { 
+    position: absolute; 
+    top: 20px; 
+    right: 30px; 
+    color: white; 
+    font-size: 40px; 
+    font-weight: 300; 
+    cursor: pointer; 
+    z-index: 4001; 
+    transition: 0.2s; 
+    line-height: 1;
+}
+.close-visor:hover { 
+    color: #f87171; 
+    transform: scale(1.1); 
+}
+
+/* Efecto hover para las miniaturas del modal de detalle */
+.foto-wrapper img { 
+    cursor: pointer; 
+    transition: transform 0.2s, border-color 0.2s; 
+}
+.foto-wrapper img:hover { 
+    transform: scale(1.03); 
+    border-color: var(--secondary-color); 
+}
     </style>
 </head>
 <body>
@@ -500,9 +547,13 @@
                 </div>
             </div>
         </div>
+    </div> <div id="modalVisorFoto" class="modal">
+        <span class="close-visor" onclick="cerrarVisorFoto()">&times;</span>
+        <div class="modal-content" style="background: transparent; box-shadow: none; max-width: 95vw; max-height: 95vh; display: flex; justify-content: center; align-items: center;">
+            <img id="img-visor" src="" alt="Vista ampliada del equipo">
+        </div>
     </div>
 
-           
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -1073,8 +1124,11 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
             
             // --- INICIO NUEVO RENDERIZADO DE FOTOS ---
             function generarHtmlFoto(src, arrayName, index) {
-                let html = `<div class="foto-wrapper"><img src="${src}">`;
-                if (rolUsuario === 'admin') { // Solo muestra el botón si es admin
+                // Al hacer clic en la imagen (<img>), se abre el visor
+                let html = `<div class="foto-wrapper"><img src="${src}" onclick="abrirVisorFoto('${src}')" title="Haz clic para ampliar">`;
+                
+                // El botón de eliminar se dibuja por encima si es admin
+                if (rolUsuario === 'admin') { 
                     html += `<button type="button" class="btn-eliminar-foto" onclick="eliminarFoto('${arrayName}', ${index})" title="Eliminar foto">✕</button>`;
                 }
                 html += `</div>`;
@@ -1533,6 +1587,26 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
         });
         
         window.onclick = function(event) { if (event.target == modalDetalle) window.cerrarModal(false); }
+
+// --- LÓGICA DEL VISOR DE IMÁGENES ---
+        window.abrirVisorFoto = function(src) {
+            document.getElementById('img-visor').src = src;
+            document.getElementById('modalVisorFoto').style.display = 'flex';
+        }
+
+        window.cerrarVisorFoto = function() {
+            document.getElementById('modalVisorFoto').style.display = 'none';
+            document.getElementById('img-visor').src = ''; // Limpiamos la ruta
+        }
+
+        // Permite cerrar el visor al hacer clic en el fondo oscuro
+        window.addEventListener('click', function(event) {
+            const modalVisor = document.getElementById('modalVisorFoto');
+            // Si el clic fue directamente en el fondo del modal (no en la foto)
+            if (event.target === modalVisor || event.target.className === 'modal-content') {
+                window.cerrarVisorFoto();
+            }
+        });
     </script>
 </body>
 </html>
