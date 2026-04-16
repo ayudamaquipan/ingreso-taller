@@ -140,6 +140,35 @@
 
         #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; color: white; font-size: 1.5em; justify-content: center; align-items: center; flex-direction: column;}
         
+/* CONTENEDOR DE FOTOS PARA ELIMINAR */
+.foto-wrapper { 
+    position: relative; 
+    display: inline-block; 
+    flex-shrink: 0; 
+}
+.btn-eliminar-foto {
+    position: absolute; 
+    top: 5px; 
+    right: 5px; 
+    background-color: rgba(239, 68, 68, 0.9); /* danger-color */
+    color: white; 
+    border: none; 
+    border-radius: 50%; 
+    width: 26px; 
+    height: 26px;
+    font-size: 14px; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform 0.1s, background-color 0.2s;
+}
+.btn-eliminar-foto:hover { 
+    background-color: #dc2626; 
+    transform: scale(1.1); 
+}
+
         /* ESTILOS DE IMPRESIÓN */
         .print-area { display: none; } 
         @media print {
@@ -885,6 +914,46 @@ window.toggleLogin = () => {
                     </tr>`;
             });
         }
+window.eliminarFoto = async function(arrayName, index) {
+            if (rolUsuario !== 'admin') return alert("No tienes permisos para eliminar fotos.");
+            if (!confirm("⚠️ ¿Estás seguro de que deseas eliminar esta fotografía?\nEsta acción no se puede deshacer.")) return;
+
+            document.getElementById('loading-overlay').style.display = 'flex';
+            try {
+                const equipo = equipos.find(e => e.id === equipoActivoId);
+                let updateData = {};
+
+                // Determinamos de qué variable/arreglo vamos a borrar
+                if (arrayName === 'fotoDriveUrl') {
+                    equipo.fotoDriveUrl = null;
+                    updateData.fotoDriveUrl = null;
+                } else if (equipo[arrayName]) {
+                    // Eliminamos el elemento específico del arreglo
+                    equipo[arrayName].splice(index, 1);
+                    updateData[arrayName] = equipo[arrayName];
+                }
+
+                // Dejamos un registro en la bitácora
+                equipo.bitacora.push({ 
+                    fecha: new Date().toLocaleString('es-CL'), 
+                    nota: "🗑️ El administrador eliminó una fotografía del registro." 
+                });
+                updateData.bitacora = equipo.bitacora;
+
+                // Actualizamos Firebase
+                const docRef = doc(db, "equipos", equipoActivoId);
+                await updateDoc(docRef, updateData);
+                
+                // Recargamos visualmente el modal
+                cargarDatosEnModal(equipo);
+
+            } catch (error) { 
+                console.error(error); 
+                alert("Error al intentar eliminar la foto de la base de datos."); 
+            } finally { 
+                document.getElementById('loading-overlay').style.display = 'none'; 
+            }
+        };
 
         function actualizarDashboard(datos = equipos) {
             let totalIngresados = 0; let totalRevision = 0;
@@ -1002,15 +1071,38 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
             document.getElementById('mod-tecnico').value = equipo.tecnico; document.getElementById('mod-estado').value = equipo.estado;
             document.getElementById('mod-estado-txt').innerText = equipo.estado;
             
-            const fotoIngresoContainer = document.getElementById('mod-foto-ingreso-container'); let fotosIngresoHtml = '';
-            if (equipo.fotoDriveUrl && equipo.fotoDriveUrl.startsWith("data:image")) { fotosIngresoHtml += `<img src="${equipo.fotoDriveUrl}">`; }
-            if (equipo.fotosExtra && equipo.fotosExtra.length > 0) { equipo.fotosExtra.forEach(fotoBase64 => { fotosIngresoHtml += `<img src="${fotoBase64}">`; }); }
-            if (equipo.fotosIngreso && equipo.fotosIngreso.length > 0) { equipo.fotosIngreso.forEach(fotoBase64 => { fotosIngresoHtml += `<img src="${fotoBase64}">`; }); }
+            // --- INICIO NUEVO RENDERIZADO DE FOTOS ---
+            function generarHtmlFoto(src, arrayName, index) {
+                let html = `<div class="foto-wrapper"><img src="${src}">`;
+                if (rolUsuario === 'admin') { // Solo muestra el botón si es admin
+                    html += `<button type="button" class="btn-eliminar-foto" onclick="eliminarFoto('${arrayName}', ${index})" title="Eliminar foto">✕</button>`;
+                }
+                html += `</div>`;
+                return html;
+            }
+
+            const fotoIngresoContainer = document.getElementById('mod-foto-ingreso-container'); 
+            let fotosIngresoHtml = '';
+            
+            if (equipo.fotoDriveUrl && equipo.fotoDriveUrl.startsWith("data:image")) { 
+                fotosIngresoHtml += generarHtmlFoto(equipo.fotoDriveUrl, 'fotoDriveUrl', 0); 
+            }
+            if (equipo.fotosExtra && equipo.fotosExtra.length > 0) { 
+                equipo.fotosExtra.forEach((foto, index) => { fotosIngresoHtml += generarHtmlFoto(foto, 'fotosExtra', index); }); 
+            }
+            if (equipo.fotosIngreso && equipo.fotosIngreso.length > 0) { 
+                equipo.fotosIngreso.forEach((foto, index) => { fotosIngresoHtml += generarHtmlFoto(foto, 'fotosIngreso', index); }); 
+            }
             fotoIngresoContainer.innerHTML = fotosIngresoHtml !== '' ? fotosIngresoHtml : `<div class="foto-placeholder">📷 Sin fotos de ingreso</div>`;
 
-            const fotoEntregaContainer = document.getElementById('mod-foto-entrega-container'); let fotosEntregaHtml = '';
-            if (equipo.fotosEntrega && equipo.fotosEntrega.length > 0) { equipo.fotosEntrega.forEach(fotoBase64 => { fotosEntregaHtml += `<img src="${fotoBase64}">`; }); }
+            const fotoEntregaContainer = document.getElementById('mod-foto-entrega-container'); 
+            let fotosEntregaHtml = '';
+            
+            if (equipo.fotosEntrega && equipo.fotosEntrega.length > 0) { 
+                equipo.fotosEntrega.forEach((foto, index) => { fotosEntregaHtml += generarHtmlFoto(foto, 'fotosEntrega', index); }); 
+            }
             fotoEntregaContainer.innerHTML = fotosEntregaHtml !== '' ? fotosEntregaHtml : `<div class="foto-placeholder">📷 Sin fotos de entrega</div>`;
+            // --- FIN NUEVO RENDERIZADO DE FOTOS ---
 
             const tbodyRepuestos = document.getElementById('mod-tabla-repuestos').querySelector('tbody'); tbodyRepuestos.innerHTML = '';
             if (equipo.repuestos && equipo.repuestos.length > 0) {
