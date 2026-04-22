@@ -1458,7 +1458,7 @@ equipo.fechaNV = document.getElementById('mod-fecha-nv').value || '';
                     <div class="print-header-text">
                         <h1>Acta de Servicio Técnico</h1>
                         <p><strong>TALLER MAQUIPAN</strong></p>
-                        <p style="margin-top:8px;">Folio de Atención: <strong>${eq.folio || eq.req}</strong></p>
+                        <p style="margin-top:8px;">Folio: <strong>${eq.folio}</strong> | REQ: <strong>${eq.req}</strong></p>
                     </div>
                 </div>
                 
@@ -1468,7 +1468,7 @@ equipo.fechaNV = document.getElementById('mod-fecha-nv').value || '';
                         <div><span>Cliente / Sucursal:</span> ${eq.cliente}</div>
                         <div><span>Estado Final:</span> ${eq.estado}</div>
                         <div><span>Técnico a Cargo:</span> ${eq.tecnico || 'No asignado'}</div>
-                        <div><span>Cotización Asoc.:</span> ${eq.cotizacion}</div>
+                        <div><span>N° REQ:</span> ${eq.req || 'N/A'}</div> <div><span>Cotización Asoc.:</span> ${eq.cotizacion}</div>
                         <div><span>Fecha de Ingreso:</span> ${formatearFecha(eq.fechaIngreso)}</div>
                         <div><span>Fecha de Emisión:</span> ${new Date().toLocaleDateString('es-CL')}</div>
                     </div>
