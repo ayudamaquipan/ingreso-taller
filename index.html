@@ -968,10 +968,21 @@ const valGuia = document.getElementById('guia-ingreso').value.trim();
                     textoRepuestos = `<br><small style="color:${colorTick}; font-weight:600;">⚙️ Repuestos: ${listos}/${eq.repuestos.length} Listos</small>`;
                 }
 
-                let imagenThumbnail = eq.fotoDriveUrl && eq.fotoDriveUrl.startsWith("data:image") 
-                    ? `<img src="${eq.fotoDriveUrl}" class="tabla-thumb" alt="Miniatura">` 
-                    : `<div class="tabla-thumb" style="display:flex; justify-content:center; align-items:center; background-color:#e2e8f0; color:#94a3b8; font-size:1.5em;">📷</div>`;
+                // Buscar la mejor foto disponible para usar como miniatura
+let urlFotoPrincipal = null;
 
+if (eq.fotoDriveUrl && eq.fotoDriveUrl.startsWith("data:image")) {
+    urlFotoPrincipal = eq.fotoDriveUrl; // Foto inicial
+} else if (eq.fotosIngreso && eq.fotosIngreso.length > 0) {
+    urlFotoPrincipal = eq.fotosIngreso[0]; // Primera foto de ingreso agregada después
+} else if (eq.fotosExtra && eq.fotosExtra.length > 0) {
+    urlFotoPrincipal = eq.fotosExtra[0]; // Fotos extra (por si acaso)
+}
+
+let imagenThumbnail = urlFotoPrincipal 
+    ? `<img src="${urlFotoPrincipal}" class="tabla-thumb" alt="Miniatura" style="object-fit: cover;">` 
+    : `<div class="tabla-thumb" style="display:flex; justify-content:center; align-items:center; background-color:#e2e8f0; color:#94a3b8; font-size:1.5em;">📷</div>`;
+				
                 tbody.innerHTML += `
                     <tr>
                         <td style="min-width: 120px;">${folioBadge}${badgeReq}<br><span style="color:var(--text-muted); font-size:0.9em;">Cot: ${eq.cotizacion}</span>${textoNV}${valoresPpto}</td>
