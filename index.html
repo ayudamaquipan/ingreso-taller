@@ -570,7 +570,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         // NUEVO: Importaciones de Autenticación
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
@@ -726,6 +726,7 @@ window.toggleLogin = () => {
                 document.getElementById('loading-overlay').style.display = 'flex';
                 try {
                     await deleteDoc(doc(db, "equipos", equipoActivoId));
+                    await deleteDoc(doc(db, "equipos_fotos", equipoActivoId)); // Elimina también sus fotos
                     window.cerrarModal(true); // Cerrar y no intentar restaurar repuestos
                     alert("Ficha eliminada correctamente del sistema.");
                 } catch(e) {
@@ -807,8 +808,6 @@ window.toggleLogin = () => {
             window.aplicarFiltros(); 
         }, 500); 
 
-        iniciarEscuchaFirebase(300);
-
         async function procesarYComprimirFoto(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -851,9 +850,13 @@ window.toggleLogin = () => {
                 }
                 const nombreTipo = tipo === 'ingreso' ? 'Ingreso/Revisión' : 'Entrega/Reparación';
                 equipo.bitacora.push({ fecha: new Date().toLocaleString('es-CL'), nota: `📸 Se adjuntó fotografía de ${nombreTipo}.` });
-                updateData.bitacora = equipo.bitacora;
-                const docRef = doc(db, "equipos", equipoActivoId);
-                await updateDoc(docRef, updateData);
+                
+                // Guardar las fotos en la colección de fotos usando merge para no sobreescribir
+                await setDoc(doc(db, "equipos_fotos", equipoActivoId), updateData, { merge: true });
+                
+                // Guardar la bitácora en la colección principal
+                await updateDoc(doc(db, "equipos", equipoActivoId), { bitacora: equipo.bitacora });
+                
                 cargarDatosEnModal(equipo);
             } catch (error) { console.error(error); alert("Error al subir foto."); } 
             finally { document.getElementById('loading-overlay').style.display = 'none'; event.target.value = ''; }
@@ -872,20 +875,25 @@ const valGuia = document.getElementById('guia-ingreso').value.trim();
                 const folioUnico = 'FX-' + Math.floor(100000 + Math.random() * 900000);
 
                 const nuevoEquipo = {
-    folio: folioUnico, 
-    req: valReq !== '' ? valReq : '--', 
-    guiaDespacho: valGuia !== '' ? valGuia : '--', // <--- NUEVO CAMPO
-    cotizacion: '--', subtotal: '--', totalCotizacion: '--', nv: '--', fechaNV: '',
+                    folio: folioUnico, req: valReq !== '' ? valReq : '--', guiaDespacho: valGuia !== '' ? valGuia : '--',
+                    cotizacion: '--', subtotal: '--', totalCotizacion: '--', nv: '--', fechaNV: '',
                     fechaIngreso: document.getElementById('fecha-ingreso').value, fechaPresupuesto: document.getElementById('fecha-presupuesto').value,
                     cliente: document.getElementById('cliente').value, equipo: document.getElementById('equipo').value, serie: document.getElementById('serie').value.trim(),
                     prioridad: document.getElementById('prioridad').value, falla: document.getElementById('falla').value,
                     fallaEncontrada: '', reparacionRealizada: '',
                     tecnico: document.getElementById('tecnico').value || 'Sin asignar', estado: 'Ingresado', repuestos: [], 
-                    fotoDriveUrl: fotoDatos, fotosIngreso: [], fotosEntrega: [], 
                     bitacora: [{ fecha: new Date().toLocaleString('es-CL'), nota: "Ficha de ingreso creada en sistema." + (fotoDatos ? " 📸 (Con Fotografía)" : "") }],
                     timestamp: Date.now()
                 };
-                await addDoc(equiposRef, nuevoEquipo);
+                
+                // 1. Guardar el texto en la colección principal
+                const docAgregado = await addDoc(equiposRef, nuevoEquipo);
+                
+                // 2. Guardar las imágenes en la nueva colección usando el MISMO ID
+                await setDoc(doc(db, "equipos_fotos", docAgregado.id), {
+                    fotoDriveUrl: fotoDatos, fotosIngreso: [], fotosEntrega: []
+                });
+                
                 this.reset(); document.getElementById('fecha-ingreso').valueAsDate = new Date(); window.cerrarModalIngreso(); 
             } catch (error) { console.error(error); alert("Error al guardar en Firebase."); } 
             finally { document.getElementById('loading-overlay').style.display = 'none'; }
@@ -1017,11 +1025,11 @@ window.eliminarFoto = async function(arrayName, index) {
                     fecha: new Date().toLocaleString('es-CL'), 
                     nota: "🗑️ El administrador eliminó una fotografía del registro." 
                 });
-                updateData.bitacora = equipo.bitacora;
 
-                // Actualizamos Firebase
-                const docRef = doc(db, "equipos", equipoActivoId);
-                await updateDoc(docRef, updateData);
+                // Actualizar fotos
+                await setDoc(doc(db, "equipos_fotos", equipoActivoId), updateData, { merge: true });
+                // Actualizar bitácora
+                await updateDoc(doc(db, "equipos", equipoActivoId), { bitacora: equipo.bitacora });
                 
                 // Recargamos visualmente el modal
                 cargarDatosEnModal(equipo);
@@ -1103,9 +1111,27 @@ window.eliminarFoto = async function(arrayName, index) {
         }
 
         const modalDetalle = document.getElementById('modalDetalle');
-        window.abrirModal = function(id) {
+        
+        window.abrirModal = async function(id) {
             equipoActivoId = id; const equipo = equipos.find(e => e.id === id);
             window.repuestosIniciales = JSON.parse(JSON.stringify(equipo.repuestos || []));
+            
+            document.getElementById('loading-msg').innerText = "⏳ Cargando fotografías...";
+            document.getElementById('loading-overlay').style.display = 'flex';
+            
+            // Buscar fotos en la colección separada
+            try {
+                const fotoDoc = await getDoc(doc(db, "equipos_fotos", id));
+                if (fotoDoc.exists()) {
+                    const fData = fotoDoc.data();
+                    if(fData.fotoDriveUrl) equipo.fotoDriveUrl = fData.fotoDriveUrl;
+                    if(fData.fotosIngreso) equipo.fotosIngreso = fData.fotosIngreso;
+                    if(fData.fotosEntrega) equipo.fotosEntrega = fData.fotosEntrega;
+                    if(fData.fotosExtra) equipo.fotosExtra = fData.fotosExtra;
+                }
+            } catch(e) { console.error("Error cargando fotos extra", e); }
+            
+            document.getElementById('loading-overlay').style.display = 'none';
             cargarDatosEnModal(equipo); modalDetalle.style.display = "flex"; 
         }
 
