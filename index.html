@@ -603,55 +603,64 @@
         }
 
  onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    // Intenta buscar el rol del usuario en la base de datos
-                    const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-                    
-                    if (userDoc.exists()) {
-                        const data = userDoc.data();
-                        
-                        // Validar que el campo rol exista y no esté vacío
-                        if (!data.rol) {
-                            alert(`Falta el campo 'rol' en Firestore.\n\nRevisa tu documento con ID:\n${user.uid}\n\nAsegúrate de haber creado el campo llamado exactamente 'rol' (todo en minúsculas) y que tenga un valor (ej: 'visor').`);
-                            signOut(auth);
-                            document.getElementById('loading-overlay').style.display = 'none';
-                            return;
-                        }
+    if (user) {
+        try {
+            // 1. SOLUCIÓN QR: Si es el visor, saltamos la consulta a la base de datos para evitar bloqueos
+            if (user.email === 'visor@maquipan.cl') {
+                rolUsuario = 'visor';
+                aplicarPermisosSegunRol(rolUsuario);
+                document.getElementById('pantalla-login-fullscreen').style.display = 'none';
+                
+                // Mantenemos el fondo oculto si venimos de escanear un QR
+                if (!new URLSearchParams(window.location.search).get('folio')) {
+                    document.querySelector('.container').style.display = 'flex';
+                }
+                iniciarEscuchaFirebase(300);
+                document.getElementById('loading-overlay').style.display = 'none';
+                return; // Terminamos aquí y evitamos el error
+            }
 
-                        rolUsuario = data.rol.toLowerCase(); // Normalizar a minúsculas
-                        aplicarPermisosSegunRol(rolUsuario);
-                        
-                        document.getElementById('pantalla-login-fullscreen').style.display = 'none';
-
-// NUEVO: Solo mostrar el contenedor principal si NO venimos de un escaneo de QR
-const esEscaneoQR = new URLSearchParams(window.location.search).get('folio');
-if (!esEscaneoQR) {
-    document.querySelector('.container').style.display = 'flex';
-}
-                        
-                        iniciarEscuchaFirebase(300);
-                        document.getElementById('loading-overlay').style.display = 'none';
-                        
-                        document.getElementById('btn-auth').innerHTML = `🔓 Cerrar Sesión (${rolUsuario.toUpperCase()})`;
-                    } else {
-                        alert(`¡Casi listo!\nTu usuario ingresó, pero falta asignarle un rol.\n\nVe a Firestore Database, crea un documento en la colección "usuarios" y ponle exactamente este ID:\n${user.uid}`);
-                        signOut(auth);
-                        document.getElementById('loading-overlay').style.display = 'none';
-                    }
-                } catch (error) {
-                    console.error("El error real es:", error);
-                    alert("Ocurrió un error en el código: " + error.message);
+            // 2. Para los demás usuarios (ej: gparedes@maquipan.cl), sí consultamos la base de datos
+            const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+            
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                
+                if (!data.rol) {
+                    alert(`Falta el campo 'rol' en Firestore.\n\nRevisa tu documento con ID:\n${user.uid}`);
                     signOut(auth);
                     document.getElementById('loading-overlay').style.display = 'none';
+                    return;
                 }
+
+                rolUsuario = data.rol.toLowerCase();
+                aplicarPermisosSegunRol(rolUsuario);
+                
+                document.getElementById('pantalla-login-fullscreen').style.display = 'none';
+                document.querySelector('.container').style.display = 'flex';
+                
+                iniciarEscuchaFirebase(300);
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('btn-auth').innerHTML = `🔓 Cerrar Sesión (${rolUsuario.toUpperCase()})`;
             } else {
-                rolUsuario = null;
-                document.getElementById('pantalla-login-fullscreen').style.display = 'flex';
-                document.querySelector('.container').style.display = 'none';
+                alert(`¡Casi listo!\nTu usuario ingresó, pero falta asignarle un rol en la colección "usuarios" de Firestore.`);
+                signOut(auth);
                 document.getElementById('loading-overlay').style.display = 'none';
             }
-        });
+        } catch (error) {
+            console.error("El error real es:", error);
+            // 3. MENSAJE AMIGABLE PARA USUARIOS NORMALES
+            alert("Bloqueo de conexión detectado.\n\nSi usas AdBlock, extensiones de privacidad, o el navegador Brave, desactiva los escudos para esta página o prueba ingresando en Modo Incógnito.");
+            signOut(auth);
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+    } else {
+        rolUsuario = null;
+        document.getElementById('pantalla-login-fullscreen').style.display = 'flex';
+        document.querySelector('.container').style.display = 'none';
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
+});
 
 // NUEVA FUNCIÓN PARA GESTIONAR LA INTERFAZ SEGÚN EL ROL
 function aplicarPermisosSegunRol(rol) {
