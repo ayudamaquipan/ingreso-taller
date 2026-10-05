@@ -869,7 +869,6 @@ window.toggleLogin = () => {
     const folioEscaneado = urlParams.get('folio');
     
     // Si viene un folio en la URL y aún no lo hemos abierto
-    // Si viene un folio en la URL y aún no lo hemos abierto
 if (folioEscaneado && !window.modalAbiertoPorUrl) {
     const equipoEncontrado = equipos.find(e => e.folio === folioEscaneado);
     if (equipoEncontrado) {
@@ -877,20 +876,21 @@ if (folioEscaneado && !window.modalAbiertoPorUrl) {
         // 1. Asignamos el ID activo internamente (necesario para el acta)
         equipoActivoId = equipoEncontrado.id;
         
-        // 2. Lanzamos la generación del PDF directo en lugar de abrir el Modal
+        // 2. Lanzamos la generación del PDF
         window.generarActaPDF();
         window.modalAbiertoPorUrl = true; 
         
         // 3. Limpiar la URL visualmente
         window.history.replaceState({}, document.title, window.location.pathname);
 
-        // 4. Mostrar una pantalla limpia al cliente indicando que ya terminó
-        document.body.innerHTML += `
-            <div style="display:flex; height:100vh; width:100vw; justify-content:center; align-items:center; flex-direction:column; background:var(--bg-color); position:fixed; top:0; left:0; z-index: 9999;">
-                <h2 style="color:var(--primary-color);">✅ Acta Formal Generada</h2>
-                <p style="color:var(--text-muted); font-size: 1.1em;">Se ha abierto el documento PDF. Ya puedes cerrar esta ventana.</p>
-            </div>
+        // 4. Mostrar mensaje de éxito SIN desconectar a Firebase (Método seguro)
+        const pantallaExito = document.createElement('div');
+        pantallaExito.style.cssText = 'display:flex; height:100vh; width:100vw; justify-content:center; align-items:center; flex-direction:column; background:var(--bg-color); position:fixed; top:0; left:0; z-index: 9999;';
+        pantallaExito.innerHTML = `
+            <h2 style="color:var(--primary-color);">✅ Acta Formal Generada</h2>
+            <p style="color:var(--text-muted); font-size: 1.1em;">Se ha preparado el documento PDF. Ya puedes cerrar esta ventana.</p>
         `;
+        document.body.appendChild(pantallaExito);
         
     } else if (equipos.length > 0) {
         alert("El equipo escaneado (" + folioEscaneado + ") no se encuentra en la base de datos actual.");
