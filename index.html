@@ -591,52 +591,67 @@
         // GESTIÓN DE ROLES Y SESIÓN
         let rolUsuario = null; // Puede ser 'admin', 'ejecutivo', 'tecnico', 'visor'
 
-// NUEVO: Auto-login si el usuario entra a través de un código QR escaneado
-const urlParamsQR = new URLSearchParams(window.location.search);
-const folioQR = urlParamsQR.get('folio');
+        // NUEVO: Auto-login si el usuario entra a través de un código QR escaneado
+        const urlParamsQR = new URLSearchParams(window.location.search);
+        const folioQR = urlParamsQR.get('folio');
 
-if (folioQR && !auth.currentUser) {
-    document.getElementById('loading-msg').innerText = "⏳ Preparando informe del equipo...";
-    document.getElementById('loading-overlay').style.display = 'flex';
-    // Utiliza la cuenta genérica de solo lectura que creaste en Firebase
-    signInWithEmailAndPassword(auth, 'visor@maquipan.cl', 'visor123')
-        .catch(error => console.error("No se pudo auto-loguear al visor", error));
+        if (folioQR && !auth.currentUser) {
+            document.getElementById('loading-msg').innerText = "⏳ Preparando informe del equipo...";
+            document.getElementById('loading-overlay').style.display = 'flex';
+            signInWithEmailAndPassword(auth, 'visor@maquipan.cl', 'visor123')
+                .catch(error => console.error("No se pudo auto-loguear al visor", error));
+        }
+
+ onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    // Intenta buscar el rol del usuario en la base de datos
+                    const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+                    
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
+                        
+                        // Validar que el campo rol exista y no esté vacío
+                        if (!data.rol) {
+                            alert(`Falta el campo 'rol' en Firestore.\n\nRevisa tu documento con ID:\n${user.uid}\n\nAsegúrate de haber creado el campo llamado exactamente 'rol' (todo en minúsculas) y que tenga un valor (ej: 'visor').`);
+                            signOut(auth);
+                            document.getElementById('loading-overlay').style.display = 'none';
+                            return;
+                        }
+
+                        rolUsuario = data.rol.toLowerCase(); // Normalizar a minúsculas
+                        aplicarPermisosSegunRol(rolUsuario);
+                        
+                        document.getElementById('pantalla-login-fullscreen').style.display = 'none';
+
+// NUEVO: Solo mostrar el contenedor principal si NO venimos de un escaneo de QR
+const esEscaneoQR = new URLSearchParams(window.location.search).get('folio');
+if (!esEscaneoQR) {
+    document.querySelector('.container').style.display = 'flex';
 }
-
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        try {
-            // Se envuelve la petición en try...catch para evitar quiebres sin red
-            const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-            
-            if (userDoc.exists()) {
-                rolUsuario = userDoc.data().rol;
-                aplicarPermisosSegunRol(rolUsuario);
-                
-                document.getElementById('pantalla-login-fullscreen').style.display = 'none';
-                document.querySelector('.container').style.display = 'flex';
-                
-                iniciarEscuchaFirebase(300);
-                document.getElementById('loading-overlay').style.display = 'none';
-                
-                document.getElementById('btn-auth').innerHTML = `🔓 Cerrar Sesión (${rolUsuario.toUpperCase()})`;
+                        
+                        iniciarEscuchaFirebase(300);
+                        document.getElementById('loading-overlay').style.display = 'none';
+                        
+                        document.getElementById('btn-auth').innerHTML = `🔓 Cerrar Sesión (${rolUsuario.toUpperCase()})`;
+                    } else {
+                        alert(`¡Casi listo!\nTu usuario ingresó, pero falta asignarle un rol.\n\nVe a Firestore Database, crea un documento en la colección "usuarios" y ponle exactamente este ID:\n${user.uid}`);
+                        signOut(auth);
+                        document.getElementById('loading-overlay').style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error("El error real es:", error);
+                    alert("Ocurrió un error en el código: " + error.message);
+                    signOut(auth);
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }
             } else {
-                alert("Tu cuenta no tiene un rol asignado. Contacta al administrador.");
-                signOut(auth);
+                rolUsuario = null;
+                document.getElementById('pantalla-login-fullscreen').style.display = 'flex';
+                document.querySelector('.container').style.display = 'none';
                 document.getElementById('loading-overlay').style.display = 'none';
             }
-        } catch (error) {
-            console.error("Fallo de red al validar usuario:", error);
-            alert("⚠️ Sin conexión a Internet. No pudimos verificar tu perfil, revisa tu señal.");
-            document.getElementById('loading-overlay').style.display = 'none';
-        }
-    } else {
-        rolUsuario = null;
-        document.getElementById('pantalla-login-fullscreen').style.display = 'flex';
-        document.querySelector('.container').style.display = 'none';
-        document.getElementById('loading-overlay').style.display = 'none';
-    }
-});
+        });
 
 // NUEVA FUNCIÓN PARA GESTIONAR LA INTERFAZ SEGÚN EL ROL
 function aplicarPermisosSegunRol(rol) {
@@ -850,36 +865,39 @@ window.toggleLogin = () => {
     document.getElementById('loading-msg').innerText = "⏳ Guardando datos..."; 
     
     // NUEVO: Lógica para procesar el escaneo del código QR
-    // NUEVO: Lógica para procesar el escaneo del código QR
     const urlParams = new URLSearchParams(window.location.search);
     const folioEscaneado = urlParams.get('folio');
     
     // Si viene un folio en la URL y aún no lo hemos abierto
-    if (folioEscaneado && !window.modalAbiertoPorUrl) {
-        const equipoEncontrado = equipos.find(e => e.folio === folioEscaneado);
-        if (equipoEncontrado) {
-            
-            // Como abrirModal ahora es asíncrono (carga fotos), usamos .then() para esperar
-            window.abrirModal(equipoEncontrado.id).then(() => {
-                // Si el usuario es el cliente (visor), mostramos el PDF de inmediato
-                if (rolUsuario === 'visor') {
-                    setTimeout(() => {
-                        window.generarActaPDF();
-                    }, 800); // 800ms de retraso para asegurar que la interfaz esté lista
-                }
-            });
+    // Si viene un folio en la URL y aún no lo hemos abierto
+if (folioEscaneado && !window.modalAbiertoPorUrl) {
+    const equipoEncontrado = equipos.find(e => e.folio === folioEscaneado);
+    if (equipoEncontrado) {
+        
+        // 1. Asignamos el ID activo internamente (necesario para el acta)
+        equipoActivoId = equipoEncontrado.id;
+        
+        // 2. Lanzamos la generación del PDF directo en lugar de abrir el Modal
+        window.generarActaPDF();
+        window.modalAbiertoPorUrl = true; 
+        
+        // 3. Limpiar la URL visualmente
+        window.history.replaceState({}, document.title, window.location.pathname);
 
-            window.modalAbiertoPorUrl = true; // Evitar que se reabra solo si Firebase detecta un cambio
-            
-            // Limpiar la URL visualmente para que al recargar la página no vuelva a abrirlo
-            window.history.replaceState({}, document.title, window.location.pathname);
-        } else if (equipos.length > 0) {
-            // Si cargaron los equipos y no está, avisamos
-            alert("El equipo escaneado (" + folioEscaneado + ") no se encuentra en la vista actual.");
-            window.history.replaceState({}, document.title, window.location.pathname);
-            window.modalAbiertoPorUrl = true;
-        }
+        // 4. Mostrar una pantalla limpia al cliente indicando que ya terminó
+        document.body.innerHTML += `
+            <div style="display:flex; height:100vh; width:100vw; justify-content:center; align-items:center; flex-direction:column; background:var(--bg-color); position:fixed; top:0; left:0; z-index: 9999;">
+                <h2 style="color:var(--primary-color);">✅ Acta Formal Generada</h2>
+                <p style="color:var(--text-muted); font-size: 1.1em;">Se ha abierto el documento PDF. Ya puedes cerrar esta ventana.</p>
+            </div>
+        `;
+        
+    } else if (equipos.length > 0) {
+        alert("El equipo escaneado (" + folioEscaneado + ") no se encuentra en la base de datos actual.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        window.modalAbiertoPorUrl = true;
     }
+}
 });
         }
 
@@ -1187,30 +1205,11 @@ window.eliminarFoto = async function(arrayName, index) {
         }
 
         const modalDetalle = document.getElementById('modalDetalle');
-        window.abrirModal = async function(id) {
-    equipoActivoId = id; const equipo = equipos.find(e => e.id === id);
-    window.repuestosIniciales = JSON.parse(JSON.stringify(equipo.repuestos || []));
-    
-    document.getElementById('loading-msg').innerText = "⏳ Cargando fotografías...";
-    document.getElementById('loading-overlay').style.display = 'flex';
-    
-    // Buscar fotos en la colección separada protegiendo la conexión
-    try {
-        const fotoDoc = await getDoc(doc(db, "equipos_fotos", id));
-        if (fotoDoc.exists()) {
-            const fData = fotoDoc.data();
-            if(fData.fotoDriveUrl) equipo.fotoDriveUrl = fData.fotoDriveUrl;
-            if(fData.fotosIngreso) equipo.fotosIngreso = fData.fotosIngreso;
-            if(fData.fotosEntrega) equipo.fotosEntrega = fData.fotosEntrega;
-            if(fData.fotosExtra) equipo.fotosExtra = fData.fotosExtra;
+        window.abrirModal = function(id) {
+            equipoActivoId = id; const equipo = equipos.find(e => e.id === id);
+            window.repuestosIniciales = JSON.parse(JSON.stringify(equipo.repuestos || []));
+            cargarDatosEnModal(equipo); modalDetalle.style.display = "flex"; 
         }
-    } catch(e) { 
-        console.warn("⚠️ No se pudieron descargar las fotos por falta de conexión a Internet."); 
-    }
-    
-    document.getElementById('loading-overlay').style.display = 'none';
-    cargarDatosEnModal(equipo); modalDetalle.style.display = "flex"; 
-}
 
         window.cerrarModal = function(guardado = false) { 
             if (guardado !== true && equipoActivoId && window.repuestosIniciales) {
