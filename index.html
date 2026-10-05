@@ -570,7 +570,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, setDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         // NUEVO: Importaciones de Autenticación
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
@@ -589,36 +589,64 @@
         const equiposRef = collection(db, "equipos");
 
         // GESTIÓN DE ROLES Y SESIÓN
-let rolUsuario = null; // Puede ser 'admin', 'ejecutivo', 'tecnico'
+        let rolUsuario = null; // Puede ser 'admin', 'ejecutivo', 'tecnico', 'visor'
 
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-        
-        if (userDoc.exists()) {
-            rolUsuario = userDoc.data().rol;
-            aplicarPermisosSegunRol(rolUsuario);
-            
-            document.getElementById('pantalla-login-fullscreen').style.display = 'none';
-            document.querySelector('.container').style.display = 'flex';
-            
-            // CORRECCIÓN: Iniciar base de datos y ocultar cargando inmediatamente
-            iniciarEscuchaFirebase(300);
-            document.getElementById('loading-overlay').style.display = 'none';
-            
-            document.getElementById('btn-auth').innerHTML = `🔓 Cerrar Sesión (${rolUsuario.toUpperCase()})`;
-        } else {
-            alert("Tu cuenta no tiene un rol asignado. Contacta al administrador.");
-            signOut(auth);
-            document.getElementById('loading-overlay').style.display = 'none';
+        // NUEVO: Auto-login si el usuario entra a través de un código QR escaneado
+        const urlParamsQR = new URLSearchParams(window.location.search);
+        const folioQR = urlParamsQR.get('folio');
+
+        if (folioQR && !auth.currentUser) {
+            document.getElementById('loading-msg').innerText = "⏳ Preparando informe del equipo...";
+            document.getElementById('loading-overlay').style.display = 'flex';
+            signInWithEmailAndPassword(auth, 'visor@maquipan.cl', 'visor123')
+                .catch(error => console.error("No se pudo auto-loguear al visor", error));
         }
-    } else {
-        rolUsuario = null;
-        document.getElementById('pantalla-login-fullscreen').style.display = 'flex';
-        document.querySelector('.container').style.display = 'none';
-        document.getElementById('loading-overlay').style.display = 'none';
-    }
-});
+
+ onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    // Intenta buscar el rol del usuario en la base de datos
+                    const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+                    
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
+                        
+                        // Validar que el campo rol exista y no esté vacío
+                        if (!data.rol) {
+                            alert(`Falta el campo 'rol' en Firestore.\n\nRevisa tu documento con ID:\n${user.uid}\n\nAsegúrate de haber creado el campo llamado exactamente 'rol' (todo en minúsculas) y que tenga un valor (ej: 'visor').`);
+                            signOut(auth);
+                            document.getElementById('loading-overlay').style.display = 'none';
+                            return;
+                        }
+
+                        rolUsuario = data.rol.toLowerCase(); // Normalizar a minúsculas
+                        aplicarPermisosSegunRol(rolUsuario);
+                        
+                        document.getElementById('pantalla-login-fullscreen').style.display = 'none';
+                        document.querySelector('.container').style.display = 'flex';
+                        
+                        iniciarEscuchaFirebase(300);
+                        document.getElementById('loading-overlay').style.display = 'none';
+                        
+                        document.getElementById('btn-auth').innerHTML = `🔓 Cerrar Sesión (${rolUsuario.toUpperCase()})`;
+                    } else {
+                        alert(`¡Casi listo!\nTu usuario ingresó, pero falta asignarle un rol.\n\nVe a Firestore Database, crea un documento en la colección "usuarios" y ponle exactamente este ID:\n${user.uid}`);
+                        signOut(auth);
+                        document.getElementById('loading-overlay').style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error("El error real es:", error);
+                    alert("Ocurrió un error en el código: " + error.message);
+                    signOut(auth);
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }
+            } else {
+                rolUsuario = null;
+                document.getElementById('pantalla-login-fullscreen').style.display = 'flex';
+                document.querySelector('.container').style.display = 'none';
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        });
 
 // NUEVA FUNCIÓN PARA GESTIONAR LA INTERFAZ SEGÚN EL ROL
 function aplicarPermisosSegunRol(rol) {
@@ -630,6 +658,61 @@ function aplicarPermisosSegunRol(rol) {
     const colIzquierda = document.querySelector('.modal-body-left');
     const colDerecha = document.querySelector('.modal-body-right');
     const inputsBase = document.querySelectorAll('.input-base');
+
+    // 0. LÓGICA PARA VISOR (MODO SOLO LECTURA PARA CLIENTES)
+    if (rol === 'visor') {
+        // Ocultar TODO el fondo (Dashboard, gráficos y tabla) para que solo vea el modal del equipo
+        document.querySelector('.dashboard').style.display = 'none';
+        document.querySelector('.charts-grid').style.display = 'none';
+        document.querySelectorAll('.card').forEach(c => c.style.display = 'none');
+        document.querySelector('.header').style.display = 'none';
+        
+        // Ocultar la "X" para que no puedan cerrar el modal y ver el sistema
+        const btnCerrarModal = document.querySelector('.close');
+        if (btnCerrarModal) btnCerrarModal.style.display = 'none';
+
+        // Modal Izquierda: Ocultar Precios y cajas para subir fotos/PDF
+        document.getElementById('mod-subtotal').parentElement.style.display = 'none';
+        document.getElementById('mod-total').parentElement.style.display = 'none';
+        document.querySelector('.pdf-uploader-box').style.display = 'none';
+        document.querySelectorAll('input[type="file"]').forEach(input => {
+            if (input.parentElement.tagName === 'LABEL') input.parentElement.style.display = 'none';
+        });
+        
+        const btnToggleRepuestos = document.querySelector('button[onclick="toggleTodosRepuestos()"]');
+        if (btnToggleRepuestos) btnToggleRepuestos.style.display = 'none';
+
+        // Entradas de texto de la izquierda en modo solo lectura
+        inputsBase.forEach(el => { el.readOnly = true; el.classList.remove('admin-edit'); });
+        ['mod-cotizacion', 'mod-nv', 'mod-fecha-nv'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) { el.readOnly = true; el.style.border = "none"; el.style.background = "transparent"; }
+        });
+
+        // Modal Derecha: Ocultar Bitácora, cambio de estado y técnico
+        document.getElementById('mod-estado').parentElement.style.display = 'none';
+        document.getElementById('mod-tecnico').parentElement.style.display = 'none';
+        document.getElementById('contenedor-bitacora').style.display = 'none';
+        document.getElementById('nueva-nota').parentElement.style.display = 'none';
+        document.querySelectorAll('.modal-body-right h3').forEach(t => { 
+            if(t.innerText.includes('Bitácora')) t.style.display = 'none'; 
+        });
+
+        // Bloquear escritura de diagnósticos
+        document.getElementById('mod-falla-encontrada').readOnly = true;
+        document.getElementById('mod-reparacion').readOnly = true;
+
+        // Ocultar botones de Guardar, Generar PDF, Imprimir QR y Eliminar
+        const btnGuardar = document.querySelector('button[onclick="guardarCambiosModal()"]');
+        if(btnGuardar) btnGuardar.style.display = 'none';
+        const btnPDF = document.querySelector('button[onclick="generarActaPDF()"]');
+        if(btnPDF) btnPDF.style.display = 'none';
+        const btnQR = document.querySelector('button[onclick="imprimirEtiquetaQR()"]');
+        if(btnQR) btnQR.style.display = 'none';
+        btnEliminar.style.display = 'none';
+        
+        return; // Termina la función aquí para que no aplique reglas de otros roles
+    }
 
     // Reset por defecto (mostrar todo)
     btnEliminar.style.display = 'none';
@@ -726,7 +809,6 @@ window.toggleLogin = () => {
                 document.getElementById('loading-overlay').style.display = 'flex';
                 try {
                     await deleteDoc(doc(db, "equipos", equipoActivoId));
-                    await deleteDoc(doc(db, "equipos_fotos", equipoActivoId)); // Elimina también sus fotos
                     window.cerrarModal(true); // Cerrar y no intentar restaurar repuestos
                     alert("Ficha eliminada correctamente del sistema.");
                 } catch(e) {
@@ -808,6 +890,8 @@ window.toggleLogin = () => {
             window.aplicarFiltros(); 
         }, 500); 
 
+        iniciarEscuchaFirebase(300);
+
         async function procesarYComprimirFoto(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -850,13 +934,9 @@ window.toggleLogin = () => {
                 }
                 const nombreTipo = tipo === 'ingreso' ? 'Ingreso/Revisión' : 'Entrega/Reparación';
                 equipo.bitacora.push({ fecha: new Date().toLocaleString('es-CL'), nota: `📸 Se adjuntó fotografía de ${nombreTipo}.` });
-                
-                // Guardar las fotos en la colección de fotos usando merge para no sobreescribir
-                await setDoc(doc(db, "equipos_fotos", equipoActivoId), updateData, { merge: true });
-                
-                // Guardar la bitácora en la colección principal
-                await updateDoc(doc(db, "equipos", equipoActivoId), { bitacora: equipo.bitacora });
-                
+                updateData.bitacora = equipo.bitacora;
+                const docRef = doc(db, "equipos", equipoActivoId);
+                await updateDoc(docRef, updateData);
                 cargarDatosEnModal(equipo);
             } catch (error) { console.error(error); alert("Error al subir foto."); } 
             finally { document.getElementById('loading-overlay').style.display = 'none'; event.target.value = ''; }
@@ -875,25 +955,20 @@ const valGuia = document.getElementById('guia-ingreso').value.trim();
                 const folioUnico = 'FX-' + Math.floor(100000 + Math.random() * 900000);
 
                 const nuevoEquipo = {
-                    folio: folioUnico, req: valReq !== '' ? valReq : '--', guiaDespacho: valGuia !== '' ? valGuia : '--',
-                    cotizacion: '--', subtotal: '--', totalCotizacion: '--', nv: '--', fechaNV: '',
+    folio: folioUnico, 
+    req: valReq !== '' ? valReq : '--', 
+    guiaDespacho: valGuia !== '' ? valGuia : '--', // <--- NUEVO CAMPO
+    cotizacion: '--', subtotal: '--', totalCotizacion: '--', nv: '--', fechaNV: '',
                     fechaIngreso: document.getElementById('fecha-ingreso').value, fechaPresupuesto: document.getElementById('fecha-presupuesto').value,
                     cliente: document.getElementById('cliente').value, equipo: document.getElementById('equipo').value, serie: document.getElementById('serie').value.trim(),
                     prioridad: document.getElementById('prioridad').value, falla: document.getElementById('falla').value,
                     fallaEncontrada: '', reparacionRealizada: '',
                     tecnico: document.getElementById('tecnico').value || 'Sin asignar', estado: 'Ingresado', repuestos: [], 
+                    fotoDriveUrl: fotoDatos, fotosIngreso: [], fotosEntrega: [], 
                     bitacora: [{ fecha: new Date().toLocaleString('es-CL'), nota: "Ficha de ingreso creada en sistema." + (fotoDatos ? " 📸 (Con Fotografía)" : "") }],
                     timestamp: Date.now()
                 };
-                
-                // 1. Guardar el texto en la colección principal
-                const docAgregado = await addDoc(equiposRef, nuevoEquipo);
-                
-                // 2. Guardar las imágenes en la nueva colección usando el MISMO ID
-                await setDoc(doc(db, "equipos_fotos", docAgregado.id), {
-                    fotoDriveUrl: fotoDatos, fotosIngreso: [], fotosEntrega: []
-                });
-                
+                await addDoc(equiposRef, nuevoEquipo);
                 this.reset(); document.getElementById('fecha-ingreso').valueAsDate = new Date(); window.cerrarModalIngreso(); 
             } catch (error) { console.error(error); alert("Error al guardar en Firebase."); } 
             finally { document.getElementById('loading-overlay').style.display = 'none'; }
@@ -973,7 +1048,7 @@ const valGuia = document.getElementById('guia-ingreso').value.trim();
                 if (eq.repuestos && eq.repuestos.length > 0) {
                     const listos = eq.repuestos.filter(r => r.disponible).length;
                     const colorTick = listos === eq.repuestos.length ? 'var(--success-color)' : 'var(--warning-color)';
-                    textoRepuestos = `<br><small style="color:${colorTick}; font-weight:600;">⚙️ Repuestos: ${listos}/${eq.repuestos.length} Listos</small>`;
+                    textoRepuestos = `<br><small style="color:${colorTick}; font-weight:600;">⚙️️ Repuestos: ${listos}/${eq.repuestos.length} Listos</small>`;
                 }
 
                 // Buscar la mejor foto disponible para usar como miniatura
@@ -1025,11 +1100,11 @@ window.eliminarFoto = async function(arrayName, index) {
                     fecha: new Date().toLocaleString('es-CL'), 
                     nota: "🗑️ El administrador eliminó una fotografía del registro." 
                 });
+                updateData.bitacora = equipo.bitacora;
 
-                // Actualizar fotos
-                await setDoc(doc(db, "equipos_fotos", equipoActivoId), updateData, { merge: true });
-                // Actualizar bitácora
-                await updateDoc(doc(db, "equipos", equipoActivoId), { bitacora: equipo.bitacora });
+                // Actualizamos Firebase
+                const docRef = doc(db, "equipos", equipoActivoId);
+                await updateDoc(docRef, updateData);
                 
                 // Recargamos visualmente el modal
                 cargarDatosEnModal(equipo);
@@ -1111,27 +1186,9 @@ window.eliminarFoto = async function(arrayName, index) {
         }
 
         const modalDetalle = document.getElementById('modalDetalle');
-        
-        window.abrirModal = async function(id) {
+        window.abrirModal = function(id) {
             equipoActivoId = id; const equipo = equipos.find(e => e.id === id);
             window.repuestosIniciales = JSON.parse(JSON.stringify(equipo.repuestos || []));
-            
-            document.getElementById('loading-msg').innerText = "⏳ Cargando fotografías...";
-            document.getElementById('loading-overlay').style.display = 'flex';
-            
-            // Buscar fotos en la colección separada
-            try {
-                const fotoDoc = await getDoc(doc(db, "equipos_fotos", id));
-                if (fotoDoc.exists()) {
-                    const fData = fotoDoc.data();
-                    if(fData.fotoDriveUrl) equipo.fotoDriveUrl = fData.fotoDriveUrl;
-                    if(fData.fotosIngreso) equipo.fotosIngreso = fData.fotosIngreso;
-                    if(fData.fotosEntrega) equipo.fotosEntrega = fData.fotosEntrega;
-                    if(fData.fotosExtra) equipo.fotosExtra = fData.fotosExtra;
-                }
-            } catch(e) { console.error("Error cargando fotos extra", e); }
-            
-            document.getElementById('loading-overlay').style.display = 'none';
             cargarDatosEnModal(equipo); modalDetalle.style.display = "flex"; 
         }
 
@@ -1223,13 +1280,13 @@ new QRCode(qrBox, { text: urlQR, width: 54, height: 54, colorDark : "#1e293b", c
                     tbodyRepuestos.innerHTML += `
     <tr style="${colorFondo}">
         <td style="text-align:center;">
-            <input type="checkbox" ${isChecked} onchange="toggleRepuesto('${equipo.id}', ${index})" style="width: 18px; height: 18px; cursor: pointer;">
+            <input type="checkbox" ${isChecked} ${rolUsuario === 'visor' ? 'disabled' : ''} onchange="toggleRepuesto('${equipo.id}', ${index})" style="width: 18px; height: 18px; cursor: ${rolUsuario === 'visor' ? 'default' : 'pointer'};">
         </td>
         <td style="font-family:monospace; font-weight:600;">${rep.codigo}</td>
         <td style="text-align: center;">${rep.cantidad}</td>
         <td style="${estiloDesc}">${rep.descripcion}</td>
         <td style="font-weight:500;">
-            ${rolUsuario === 'tecnico' ? '---' : '$' + rep.total}
+            ${rolUsuario === 'tecnico' || rolUsuario === 'visor' ? '---' : '$' + rep.total}
         </td>
     </tr>`;
                 });
