@@ -879,40 +879,31 @@ window.toggleLogin = () => {
     
     // Si viene un folio en la URL y aún no lo hemos abierto
 // Si viene un folio en la URL y aún no lo hemos abierto
+// Si viene un folio en la URL y aún no lo hemos abierto
 if (folioEscaneado && !window.modalAbiertoPorUrl) {
     const equipoEncontrado = equipos.find(e => e.folio === folioEscaneado);
     if (equipoEncontrado) {
         
-        // 1. Asignamos el ID activo internamente
-        equipoActivoId = equipoEncontrado.id;
+        // 1. Mostrar la información en línea (Acta Virtual) instantáneamente
+        window.abrirModal(equipoEncontrado.id);
         window.modalAbiertoPorUrl = true; 
+        
+        // 2. Limpiar la URL visualmente
         window.history.replaceState({}, document.title, window.location.pathname);
 
-        // 2. Mostrar pantalla de CARGA ANIMADA inmediatamente
-        const pantallaEstado = document.createElement('div');
-        pantallaEstado.style.cssText = 'display:flex; height:100vh; width:100vw; justify-content:center; align-items:center; flex-direction:column; background:var(--bg-color); position:fixed; top:0; left:0; z-index: 9999;';
-        pantallaEstado.innerHTML = `
-            <div style="font-size: 50px; animation: rotar 1.2s linear infinite;">⏳</div>
-            <h2 style="color:var(--primary-color); margin-top: 15px;">Preparando Acta PDF...</h2>
-            <p style="color:var(--text-muted); font-size: 1.1em; text-align:center; padding: 0 20px;">Procesando fotografías y datos del equipo. Por favor espera.</p>
-            <style>@keyframes rotar { 100% { transform: rotate(360deg); } }</style>
-        `;
-        document.body.appendChild(pantallaEstado);
-
-        // 3. Darle 600ms al navegador para dibujar la animación antes de congelarse armando el PDF
+        // 3. Modificar la vista para el cliente
         setTimeout(() => {
-            window.generarActaPDF();
+            // Cambiar el título del Modal para que suene más a cliente
+            document.getElementById('modal-titulo').innerText = "📄 Acta de Servicio Técnico";
             
-            // 4. Cambiar el mensaje a "Éxito" una vez que el diálogo de impresión (PDF) ya se haya lanzado
-            setTimeout(() => {
-                pantallaEstado.innerHTML = `
-                    <div style="font-size: 50px;">✅</div>
-                    <h2 style="color:var(--primary-color); margin-top: 15px;">Acta Generada</h2>
-                    <p style="color:var(--text-muted); font-size: 1.1em; text-align:center; padding: 0 20px;">El documento se ha abierto correctamente. Ya puedes cerrar esta ventana.</p>
-                `;
-            }, 1500); 
-            
-        }, 600);
+            // Volver a mostrar el botón de PDF por si el cliente DECIDE descargarlo manualmente
+            const btnPDF = document.querySelector('button[onclick="generarActaPDF()"]');
+            if (btnPDF) {
+                btnPDF.style.display = 'block'; 
+                btnPDF.innerHTML = '📥 Descargar Copia en PDF (Opcional)';
+                btnPDF.style.width = '100%'; // Que ocupe todo el ancho para celular
+            }
+        }, 500);
         
     } else if (equipos.length > 0) {
         alert("El equipo escaneado (" + folioEscaneado + ") no se encuentra en la base de datos actual.");
